@@ -2,313 +2,186 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
-<title>Scheme Claim Report</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Monthly Scheme Claim Calculator</title>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <style>
-
-*{
-  box-sizing:border-box;
-}
-
+*{box-sizing:border-box}
 body{
-  margin:0;
-  background:#f4f6fa;
-  color:#172033;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+ margin:0;background:#f4f6fa;color:#172033;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif
 }
-
-main{
-  max-width:1050px;
-  margin:auto;
-  padding:22px 14px 50px;
-}
-
-.header{
-  text-align:center;
-  margin-bottom:20px;
-}
-
-.header h1{
-  margin:0;
-  font-size:30px;
-}
-
-.header p{
-  margin:6px 0 0;
-  color:#68738a;
-  font-size:16px;
-}
-
+main{max-width:1100px;margin:auto;padding:20px 12px 50px}
+h1{text-align:center;margin:5px 0;font-size:29px}
+.sub{text-align:center;color:#68738a;margin-bottom:20px}
 .card{
-  background:white;
-  border-radius:18px;
-  padding:20px;
-  margin:15px 0;
-  box-shadow:0 3px 15px rgba(0,0,0,.07);
+ background:#fff;border-radius:18px;padding:18px;margin:15px 0;
+ box-shadow:0 3px 15px rgba(0,0,0,.07)
 }
-
-label{
-  display:block;
-  font-weight:700;
-  margin:14px 0 7px;
-}
-
+label{display:block;font-weight:700;margin:13px 0 7px}
 input[type=file]{
-  width:100%;
-  padding:13px;
-  border:1px solid #ccd3df;
-  border-radius:12px;
-  background:white;
-  font-size:15px;
+ width:100%;padding:12px;border:1px solid #ccd3df;
+ border-radius:11px;background:#fff
 }
-
 button{
-  width:100%;
-  border:0;
-  border-radius:12px;
-  padding:15px;
-  margin-top:16px;
-  font-size:16px;
-  font-weight:700;
-  background:#135dcc;
-  color:white;
+ width:100%;padding:14px;border:0;border-radius:11px;
+ background:#155dcc;color:#fff;font-size:16px;font-weight:700;
+ margin-top:15px
 }
-
-button:disabled{
-  opacity:.5;
-}
-
-#pdfButton{
-  background:#202124;
-}
-
+button:disabled{opacity:.5}
 .status{
-  margin-top:15px;
-  padding:13px;
-  border-radius:11px;
-  background:#eef4ff;
-  line-height:1.45;
+ margin-top:14px;padding:12px;border-radius:10px;
+ background:#eef4ff;line-height:1.45
 }
-
-.hidden{
-  display:none;
+.hidden{display:none}
+.detected{
+ overflow-x:auto
 }
-
+.detected table{
+ width:100%;border-collapse:collapse;min-width:650px
+}
+.detected th,.detected td{
+ border:1px solid #d9dee7;padding:7px;font-size:12px
+}
+.detected th{background:#edf2f8}
+.detected input{
+ width:100%;padding:6px;border:1px solid #ccd3df;border-radius:6px
+}
 .summary{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:12px;
+ display:grid;grid-template-columns:repeat(3,1fr);gap:10px
 }
-
-.summaryBox{
-  background:#f5f7fa;
-  border-radius:12px;
-  padding:15px;
-  text-align:center;
+.box{
+ background:#f5f7fa;border-radius:11px;padding:14px;text-align:center
 }
-
-.summaryBox small{
-  display:block;
-  color:#68738a;
-  margin-bottom:5px;
+.box small{display:block;color:#68738a;margin-bottom:4px}
+.box strong{font-size:19px}
+.tableWrap{overflow-x:auto}
+.report{
+ width:100%;min-width:900px;border-collapse:collapse
 }
-
-.summaryBox strong{
-  font-size:19px;
+.report th,.report td{
+ border:1px solid #d8dde5;padding:7px;font-size:11px
 }
-
-.tableWrap{
-  overflow-x:auto;
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-  min-width:900px;
-}
-
-th,
-td{
-  border:1px solid #d9dde5;
-  padding:8px;
-  font-size:12px;
-}
-
-th{
-  background:#edf2f8;
-  font-weight:700;
-  text-align:center;
-}
-
-td{
-  vertical-align:top;
-}
-
-.num{
-  text-align:right;
-  white-space:nowrap;
-}
-
-.center{
-  text-align:center;
-}
-
-.claim{
-  font-weight:800;
-}
-
-.total{
-  margin-top:18px;
-  text-align:right;
-  font-size:21px;
-  font-weight:800;
-}
-
-.note{
-  margin-top:12px;
-  color:#68738a;
-  font-size:12px;
-}
-
-@media(max-width:600px){
-
-  main{
-    padding:12px 10px 35px;
-  }
-
-  .header h1{
-    font-size:24px;
-  }
-
-  .card{
-    padding:15px;
-  }
-
-  .summary{
-    grid-template-columns:1fr;
-  }
-}
-
+.report th{background:#edf2f8}
+.right{text-align:right;white-space:nowrap}
+.center{text-align:center}
+.bold{font-weight:800}
+.total{text-align:right;font-size:21px;font-weight:800;margin-top:16px}
+.green{color:#087443}
+.red{color:#b42318}
+.small{font-size:12px;color:#68738a}
 </style>
 </head>
 
-
 <body>
-
 <main>
 
-  <div class="header">
-    <h1>Scheme Claim Report</h1>
-    <p>Automatic Monthly Scheme Calculator</p>
-  </div>
+<h1>Monthly Scheme Claim Calculator</h1>
+<div class="sub">Parle Products • Gross Amount Based</div>
+
+<div class="card">
+
+<label>Purchase Excel — previous 2 complete months</label>
+<input id="excel" type="file" accept=".xls,.xlsx,.csv">
+
+<label>Current month scheme chart</label>
+<input id="chart" type="file" accept="image/*">
+
+<button id="generate">Generate Report</button>
+
+<div id="status" class="status">Ready.</div>
+
+</div>
 
 
-  <div class="card">
+<div id="detectedCard" class="card hidden">
 
-    <label>
-      1. Purchase Excel — Previous 2 Complete Months
-    </label>
+<h2>Scheme Rules Detected From Current Chart</h2>
 
-    <input
-      id="excelFile"
-      type="file"
-      accept=".xls,.xlsx,.csv"
-    >
+<div class="small">
+These are read from the uploaded chart. No previous-month product list or liability rate is used.
+</div>
 
+<div class="detected">
+<table>
+<thead>
+<tr>
+<th>Product / Scheme</th>
+<th>MRP</th>
+<th>Detected Liability %</th>
+</tr>
+</thead>
+<tbody id="schemeBody"></tbody>
+</table>
+</div>
 
-    <label>
-      2. Current Month Scheme Chart
-    </label>
+<button id="continue">Use These Rules & Generate Claim</button>
 
-    <input
-      id="schemeFile"
-      type="file"
-      accept="image/*,.pdf"
-    >
-
-
-    <button id="generateButton">
-      Generate Report
-    </button>
+</div>
 
 
-    <div id="status" class="status">
-      Ready.
-    </div>
+<div id="resultCard" class="card hidden">
 
-  </div>
+<div class="summary">
 
+<div class="box">
+<small>Month 1</small>
+<strong id="m1">-</strong>
+</div>
 
-  <div id="resultCard" class="card hidden">
+<div class="box">
+<small>Month 2</small>
+<strong id="m2">-</strong>
+</div>
 
-    <div class="summary">
+<div class="box">
+<small>Total Claim</small>
+<strong id="total">₹0.00</strong>
+</div>
 
-      <div class="summaryBox">
-        <small>Purchase Month 1</small>
-        <strong id="month1">-</strong>
-      </div>
+</div>
 
-      <div class="summaryBox">
-        <small>Purchase Month 2</small>
-        <strong id="month2">-</strong>
-      </div>
-
-      <div class="summaryBox">
-        <small>Total Claim</small>
-        <strong id="totalClaim">Rs. 0.00</strong>
-      </div>
-
-    </div>
-
-  </div>
+</div>
 
 
-  <div id="reportCard" class="card hidden">
+<div id="reportCard" class="card hidden">
 
-    <h2>Scheme Claim Report</h2>
+<h2>Scheme Claim Report</h2>
 
-    <div class="tableWrap">
+<div class="tableWrap">
 
-      <table>
+<table class="report">
 
-        <thead>
+<thead>
+<tr>
+<th>Product / Scheme</th>
+<th>Month 1 Gross</th>
+<th>Month 2 Gross</th>
+<th>Average</th>
+<th>Gate</th>
+<th>Liability %</th>
+<th>Claim Amount</th>
+</tr>
+</thead>
 
-          <tr>
-            <th>Product / Scheme</th>
-            <th>Month 1</th>
-            <th>Month 2</th>
-            <th>Average</th>
-            <th>Gate</th>
-            <th>Liability %</th>
-            <th>Claim Amount</th>
-          </tr>
+<tbody id="reportBody"></tbody>
 
-        </thead>
+</table>
 
-        <tbody id="reportBody"></tbody>
+</div>
 
-      </table>
+<div class="total">
+Total Claim:
+<span id="total2">₹0.00</span>
+</div>
 
-    </div>
+<button id="pdf">Download PDF</button>
 
-
-    <div class="total">
-      Total Claim:
-      <span id="bottomTotal">Rs. 0.00</span>
-    </div>
-
-
-    <button id="pdfButton">
-      Download PDF
-    </button>
-
-  </div>
+</div>
 
 </main>
 
@@ -319,1318 +192,1455 @@ td{
 
 
 /* =========================================================
-   ELEMENTS
+   GLOBALS
 ========================================================= */
 
-const excelFile =
-  document.getElementById("excelFile");
-
-const schemeFile =
-  document.getElementById("schemeFile");
-
-const generateButton =
-  document.getElementById("generateButton");
-
-const pdfButton =
-  document.getElementById("pdfButton");
-
-const statusBox =
-  document.getElementById("status");
-
-const resultCard =
-  document.getElementById("resultCard");
-
-const reportCard =
-  document.getElementById("reportCard");
-
-const reportBody =
-  document.getElementById("reportBody");
-
+let purchaseRows=[];
+let detectedSchemes=[];
 let finalReport=null;
 
 
 /* =========================================================
-   BASIC HELPERS
+   HELPERS
 ========================================================= */
 
-function setStatus(text){
-  statusBox.textContent=text;
+const $=id=>document.getElementById(id);
+
+function money(n){
+ return "₹"+Number(n||0).toLocaleString("en-IN",{
+  minimumFractionDigits:2,
+  maximumFractionDigits:2
+ });
+}
+
+function pdfMoney(n){
+ return "Rs. "+Number(n||0).toLocaleString("en-IN",{
+  minimumFractionDigits:2,
+  maximumFractionDigits:2
+ });
+}
+
+function clean(s){
+ return String(s??"")
+  .toLowerCase()
+  .replace(/₹/g," ")
+  .replace(/rs\.?/gi," ")
+  .replace(/[^a-z0-9.%+\- ]/g," ")
+  .replace(/\s+/g," ")
+  .trim();
+}
+
+function numberValue(v){
+
+ if(typeof v==="number")
+  return isFinite(v)?v:0;
+
+ let s=String(v??"")
+  .replace(/₹/g,"")
+  .replace(/rs\.?/gi,"")
+  .replace(/,/g,"")
+  .trim();
+
+ let n=parseFloat(s);
+
+ return isFinite(n)?n:0;
 }
 
 
-function cleanText(value){
+function dateValue(v){
 
-  return String(value ?? "")
-    .toLowerCase()
-    .replace(/₹/g," rs ")
-    .replace(/rs\./g," rs ")
-    .replace(/[^a-z0-9.%\- ]/g," ")
-    .replace(/\s+/g," ")
-    .trim();
-}
+ if(v instanceof Date && !isNaN(v))
+  return new Date(v);
 
+ if(typeof v==="number"){
 
-function displayMoney(value){
+  let d=new Date(Date.UTC(1899,11,30));
 
-  return "₹" +
-    Number(value || 0).toLocaleString(
-      "en-IN",
-      {
-        minimumFractionDigits:2,
-        maximumFractionDigits:2
-      }
-    );
-}
-
-
-function pdfMoney(value){
-
-  return "Rs. " +
-    Number(value || 0).toLocaleString(
-      "en-IN",
-      {
-        minimumFractionDigits:2,
-        maximumFractionDigits:2
-      }
-    );
-}
-
-
-function amount(value){
-
-  if(typeof value==="number"){
-    return isFinite(value) ? value : 0;
-  }
-
-  let s=String(value ?? "")
-    .replace(/₹/g,"")
-    .replace(/Rs\.?/gi,"")
-    .replace(/,/g,"")
-    .trim();
-
-  let n=parseFloat(s);
-
-  return isFinite(n) ? n : 0;
-}
-
-
-function excelDate(value){
-
-  if(value instanceof Date && !isNaN(value)){
-    return new Date(value);
-  }
-
-
-  if(typeof value==="number"){
-
-    const utc =
-      new Date(
-        Date.UTC(1899,11,30)
-      );
-
-    utc.setUTCDate(
-      utc.getUTCDate()+value
-    );
-
-    return new Date(
-      utc.getUTCFullYear(),
-      utc.getUTCMonth(),
-      utc.getUTCDate()
-    );
-  }
-
-
-  const s=String(value ?? "").trim();
-
-  if(!s)
-    return null;
-
-
-  let d=new Date(s);
-
-  if(!isNaN(d))
-    return d;
-
-
-  let m=s.match(
-    /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/
+  d.setUTCDate(
+   d.getUTCDate()+v
   );
 
-  if(m){
+  return new Date(
+   d.getUTCFullYear(),
+   d.getUTCMonth(),
+   d.getUTCDate()
+  );
+ }
 
-    d=new Date(
-      Number(m[3]),
-      Number(m[2])-1,
-      Number(m[1])
-    );
+ let s=String(v??"").trim();
 
-    if(!isNaN(d))
-      return d;
-  }
+ if(!s)return null;
 
+ let d=new Date(s);
 
-  return null;
+ if(!isNaN(d))return d;
+
+ let m=s.match(
+  /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/
+ );
+
+ if(m){
+
+  d=new Date(
+   Number(m[3]),
+   Number(m[2])-1,
+   Number(m[1])
+  );
+
+  if(!isNaN(d))return d;
+ }
+
+ return null;
 }
 
 
-function monthKey(date){
-
-  return date.getFullYear() +
-    "-" +
-    String(
-      date.getMonth()+1
-    ).padStart(2,"0");
+function monthKey(d){
+ return d.getFullYear()+"-"+
+  String(d.getMonth()+1).padStart(2,"0");
 }
 
 
-function monthDisplay(key){
+function monthName(k){
 
-  const p=key.split("-");
+ let p=k.split("-");
 
-  const names=[
-    "January","February","March",
-    "April","May","June",
-    "July","August","September",
-    "October","November","December"
-  ];
+ const names=[
+  "January","February","March","April",
+  "May","June","July","August",
+  "September","October","November","December"
+ ];
 
-  return names[
-    Number(p[1])-1
-  ]+" "+p[0];
+ return names[
+  Number(p[1])-1
+ ]+" "+p[0];
 }
 
 
-/* =========================================================
-   EXCEL READER
-========================================================= */
+function escapeHtml(s){
 
-async function readExcel(file){
-
-  const buffer =
-    await file.arrayBuffer();
-
-
-  const workbook =
-    XLSX.read(
-      buffer,
-      {
-        type:"array",
-        cellDates:true
-      }
-    );
-
-
-  let sheet=null;
-
-
-  for(
-    const sheetName of workbook.SheetNames
-  ){
-
-    const candidate =
-      workbook.Sheets[sheetName];
-
-    const rows =
-      XLSX.utils.sheet_to_json(
-        candidate,
-        {
-          header:1,
-          defval:""
-        }
-      );
-
-
-    if(rows.length){
-
-      sheet=candidate;
-      break;
-    }
-  }
-
-
-  if(!sheet)
-    throw new Error(
-      "No data found in the purchase Excel."
-    );
-
-
-  const rows =
-    XLSX.utils.sheet_to_json(
-      sheet,
-      {
-        header:1,
-        defval:""
-      }
-    );
-
-
-  /*
-    IMPORTANT:
-    The purchase file can have title/blank rows.
-    Therefore search ALL rows for the real header.
-  */
-
-  let headerIndex=-1;
-
-
-  for(let i=0;i<rows.length;i++){
-
-    const r =
-      rows[i].map(
-        x=>cleanText(x)
-      );
-
-
-    if(
-      r.includes("grn date") &&
-      r.includes("product name") &&
-      r.includes("gross amount")
-    ){
-
-      headerIndex=i;
-      break;
-    }
-  }
-
-
-  if(headerIndex<0){
-
-    throw new Error(
-      "Excel columns GRN Date, Product Name and Gross Amount could not be found."
-    );
-  }
-
-
-  const headers =
-    rows[headerIndex].map(
-      x=>cleanText(x)
-    );
-
-
-  const dateIndex =
-    headers.indexOf("grn date");
-
-  const productIndex =
-    headers.indexOf("product name");
-
-  const grossIndex =
-    headers.indexOf("gross amount");
-
-
-  const output=[];
-
-
-  for(
-    let i=headerIndex+1;
-    i<rows.length;
-    i++
-  ){
-
-    const r=rows[i];
-
-
-    const date =
-      excelDate(
-        r[dateIndex]
-      );
-
-
-    const product =
-      String(
-        r[productIndex] ?? ""
-      ).trim();
-
-
-    const gross =
-      amount(
-        r[grossIndex]
-      );
-
-
-    if(
-      date &&
-      product
-    ){
-
-      output.push({
-        date:date,
-        product:product,
-        gross:gross
-      });
-    }
-  }
-
-
-  if(!output.length){
-
-    throw new Error(
-      "No purchase records were found below the Excel header."
-    );
-  }
-
-
-  return output;
+ return String(s??"")
+  .replace(/&/g,"&amp;")
+  .replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;");
 }
 
 
 /* =========================================================
-   SCHEME CHART OCR
+   EXCEL
 ========================================================= */
 
-async function readSchemeChart(file){
+async function readPurchaseExcel(file){
+
+ const wb=XLSX.read(
+  await file.arrayBuffer(),
+  {
+   type:"array",
+   cellDates:true
+  }
+ );
+
+ let ws=null;
+
+ for(const name of wb.SheetNames){
+
+  const candidate=wb.Sheets[name];
+
+  const rows=XLSX.utils.sheet_to_json(
+   candidate,
+   {
+    header:1,
+    defval:""
+   }
+  );
+
+  if(rows.length){
+   ws=candidate;
+   break;
+  }
+ }
+
+ if(!ws)
+  throw new Error("No purchase data found in Excel.");
+
+
+ const rows=XLSX.utils.sheet_to_json(
+  ws,
+  {
+   header:1,
+   defval:""
+  }
+ );
+
+
+ /*
+  Find the actual header row anywhere in the sheet.
+ */
+
+ let header=-1;
+
+ for(let i=0;i<rows.length;i++){
+
+  const r=rows[i].map(
+   x=>clean(x)
+  );
 
   if(
-    file.type==="application/pdf" ||
-    file.name.toLowerCase().endsWith(".pdf")
+   r.includes("grn date") &&
+   r.includes("product name") &&
+   r.includes("gross amount")
   ){
-
-    throw new Error(
-      "For the automatic calculator, please upload the scheme chart as PNG/JPG image. This gives more reliable OCR."
-    );
+   header=i;
+   break;
   }
+ }
 
 
-  setStatus(
-    "Reading current scheme chart..."
+ if(header<0){
+
+  throw new Error(
+   "Could not find GRN Date, Product Name and Gross Amount columns."
+  );
+ }
+
+
+ const heads=rows[header].map(
+  x=>clean(x)
+ );
+
+
+ const dateIndex=heads.indexOf("grn date");
+ const nameIndex=heads.indexOf("product name");
+ const grossIndex=heads.indexOf("gross amount");
+
+
+ const output=[];
+
+
+ for(
+  let i=header+1;
+  i<rows.length;
+  i++
+ ){
+
+  const r=rows[i];
+
+  const date=dateValue(
+   r[dateIndex]
+  );
+
+  const name=String(
+   r[nameIndex]??""
+  ).trim();
+
+  const gross=numberValue(
+   r[grossIndex]
   );
 
 
-  const result =
-    await Tesseract.recognize(
-      file,
-      "eng",
-      {
-        logger:function(message){
+  if(
+   date &&
+   name
+  ){
 
-          if(
-            message.status===
-            "recognizing text"
-          ){
-
-            const percent =
-              Math.round(
-                (message.progress || 0)*100
-              );
-
-            setStatus(
-              "Reading scheme chart... "+
-              percent+"%"
-            );
-          }
-        }
-      }
-    );
+   output.push({
+    date:date,
+    name:name,
+    gross:gross
+   });
+  }
+ }
 
 
-  return result.data.text || "";
+ if(!output.length)
+  throw new Error(
+   "No purchase records were found."
+  );
+
+
+ return output;
 }
 
 
 /* =========================================================
-   SCHEME PARSING
+   OCR
 ========================================================= */
 
-function findPercentages(text){
+async function readChart(file){
 
-  const found=[];
-
-  const re=
-    /(\d+(?:\.\d+)?)\s*%/g;
-
-  let m;
+ $("status").textContent=
+  "Reading current scheme chart...";
 
 
-  while(
-    (m=re.exec(text))!==null
+ const result=
+  await Tesseract.recognize(
+   file,
+   "eng",
+   {
+    logger:m=>{
+
+     if(
+      m.status==="recognizing text"
+     ){
+
+      $("status").textContent=
+       "Reading scheme chart... "+
+       Math.round(
+        (m.progress||0)*100
+       )+"%";
+     }
+    }
+   }
+ );
+
+
+ return result.data;
+}
+
+
+/* =========================================================
+   OCR LINE PROCESSING
+========================================================= */
+
+function makeLines(data){
+
+ /*
+  Tesseract gives words with positions.
+  We group nearby words into visual rows.
+ */
+
+ const words=(data.words||[])
+  .filter(w=>
+   w.text &&
+   Number(w.confidence??0)>=20
+  )
+  .map(w=>({
+
+   text:String(w.text).trim(),
+
+   x:Number(
+    w.bbox?.x0||0
+   ),
+
+   y:Number(
+    w.bbox?.y0||0
+   ),
+
+   y2:Number(
+    w.bbox?.y1||0
+   ),
+
+   confidence:Number(
+    w.confidence??0
+   )
+  }))
+  .filter(w=>w.text);
+
+
+ words.sort((a,b)=>a.y-b.y);
+
+
+ const lines=[];
+
+
+ for(const w of words){
+
+  let target=null;
+
+  for(const line of lines){
+
+   if(
+    Math.abs(
+     w.y-line.y
+    )<=Math.max(
+     12,
+     (w.y2-w.y)/2
+    )
+   ){
+
+    target=line;
+    break;
+   }
+  }
+
+
+  if(!target){
+
+   target={
+    y:w.y,
+    words:[]
+   };
+
+   lines.push(target);
+  }
+
+
+  target.words.push(w);
+ }
+
+
+ lines.forEach(line=>{
+
+  line.words.sort(
+   (a,b)=>a.x-b.x
+  );
+
+
+  line.text=line.words
+   .map(w=>w.text)
+   .join(" ")
+   .trim();
+
+
+  line.x0=
+   line.words.length
+    ? Math.min(
+       ...line.words.map(w=>w.x)
+      )
+    :0;
+ });
+
+
+ lines.sort(
+  (a,b)=>a.y-b.y
+ );
+
+
+ return lines;
+}
+
+
+/* =========================================================
+   PERCENTAGES / MRP
+========================================================= */
+
+function percentages(text){
+
+ const out=[];
+
+ const re=/(\d+(?:\.\d+)?)\s*%/g;
+
+ let m;
+
+ while(
+  (m=re.exec(text))!==null
+ ){
+
+  let n=parseFloat(m[1]);
+
+  if(
+   n>0 &&
+   n<=100
+  )
+   out.push(n);
+ }
+
+ return [
+  ...new Set(out)
+ ];
+}
+
+
+function mrps(text){
+
+ const out=[];
+
+ let re=
+  /(?:mrp|m\.r\.p)\s*[-:=]?\s*(?:₹|rs\.?)?\s*(\d+(?:\.\d+)?)/gi;
+
+ let m;
+
+ while(
+  (m=re.exec(text))!==null
+ ){
+  out.push(
+   parseFloat(m[1])
+  );
+ }
+
+
+ re=/₹\s*(\d+(?:\.\d+)?)/g;
+
+ while(
+  (m=re.exec(text))!==null
+ ){
+  out.push(
+   parseFloat(m[1])
+  );
+ }
+
+
+ /*
+  Rs. 10 etc.
+ */
+
+ re=/\brs\.?\s*(\d+(?:\.\d+)?)/gi;
+
+ while(
+  (m=re.exec(text))!==null
+ ){
+  out.push(
+   parseFloat(m[1])
+  );
+ }
+
+
+ return [
+  ...new Set(out)
+ ];
+}
+
+
+/* =========================================================
+   IDENTIFY PRODUCT TEXT
+========================================================= */
+
+function likelyProduct(text){
+
+ const x=clean(text);
+
+ if(!x)return false;
+
+
+ const bad=[
+  "scheme",
+  "product",
+  "products",
+  "mrp",
+  "liability",
+  "percentage",
+  "percent",
+  "rate",
+  "slab",
+  "from",
+  "upto",
+  "above",
+  "below",
+  "range",
+  "total",
+  "month",
+  "target",
+  "growth",
+  "achievement",
+  "criteria",
+  "quantity",
+  "case",
+  "cases"
+ ];
+
+
+ if(
+  bad.some(
+   w=>x===w
+  )
+ )
+  return false;
+
+
+ /*
+  A product line normally contains letters
+  and more than one meaningful word/character.
+ */
+
+ const letters=
+  (x.match(/[a-z]{2,}/g)||[]).length;
+
+
+ if(letters<1)
+  return false;
+
+
+ /*
+  Avoid lines that are almost entirely numeric.
+ */
+
+ const nums=
+  (x.match(/\d+/g)||[]).length;
+
+
+ if(
+  nums>=letters+2 &&
+  letters<2
+ )
+  return false;
+
+
+ return true;
+}
+
+
+/* =========================================================
+   PARSE CURRENT CHART
+========================================================= */
+
+function parseChart(data){
+
+ const lines=makeLines(data);
+
+ const schemes=[];
+
+
+ /*
+  First pass:
+  Find visual rows containing liability %.
+ */
+
+ for(let i=0;i<lines.length;i++){
+
+  const line=lines[i];
+
+  let text=line.text;
+
+  let rates=percentages(text);
+
+
+  /*
+   If percentage is on the next visual line,
+   combine the two.
+  */
+
+  if(
+   !rates.length &&
+   i+1<lines.length
   ){
 
-    const n=parseFloat(m[1]);
+   const next=lines[i+1];
+
+   if(
+    next.y-line.y<60
+   ){
+
+    const nr=percentages(
+     next.text
+    );
+
+    if(nr.length){
+
+     text=
+      line.text+
+      " "+
+      next.text;
+
+     rates=nr;
+    }
+   }
+  }
+
+
+  if(!rates.length)
+   continue;
+
+
+  /*
+   Search this line and nearby lines for product name.
+  */
+
+  let productText="";
+
+  for(
+   let j=Math.max(0,i-2);
+   j<=Math.min(lines.length-1,i+1);
+   j++
+  ){
+
+   const candidate=
+    lines[j].text;
+
+
+   if(
+    likelyProduct(candidate)
+   ){
+
+    /*
+     Prefer line with actual alphabetic
+     product information.
+    */
+
+    const c=clean(candidate);
 
     if(
-      n>0 &&
-      n<=100
+     !c.includes("liability") &&
+     !c.includes("percentage") &&
+     !c.includes("scheme")
     ){
 
-      found.push(n);
+     productText=
+      productText
+       ? productText+" "+candidate
+       : candidate;
     }
+   }
   }
 
 
-  return [
-    ...new Set(found)
-  ];
-}
-
-
-function findMRPs(text){
-
-  const found=[];
-
-
-  let re=
-    /(?:mrp|m\.r\.p)\s*[-:]?\s*(?:rs\.?|₹)?\s*(\d+(?:\.\d+)?)/gi;
-
-
-  let m;
-
-
-  while(
-    (m=re.exec(text))!==null
-  ){
-
-    found.push(
-      parseFloat(m[1])
-    );
-  }
+  if(!productText)
+   continue;
 
 
   /*
-    Also detect explicit ₹ values.
+   Remove obvious numeric slab information
+   from display name.
   */
 
-  re=/₹\s*(\d+(?:\.\d+)?)/g;
+  let name=productText
+   .replace(
+    /\d+(?:\.\d+)?\s*%/g,
+    " "
+   )
+   .replace(
+    /\b\d+\s*[-–]\s*\d+\b/g,
+    " "
+   )
+   .replace(
+    /\b\d+\+\b/g,
+    " "
+   )
+   .replace(
+    /\s+/g,
+    " "
+   )
+   .trim();
 
 
-  while(
-    (m=re.exec(text))!==null
-  ){
-
-    found.push(
-      parseFloat(m[1])
-    );
-  }
-
-
-  return [
-    ...new Set(found)
-  ];
-}
-
-
-function schemeProductName(line){
-
-  let x=cleanText(line);
+  if(!name)
+   continue;
 
 
   /*
-    Remove obvious slab/rate text.
+   Do not accept pure headings.
   */
 
-  x=x
-    .replace(/\d+(?:\.\d+)?\s*%/g," ")
-    .replace(/\b\d+\s*[-–]\s*\d+\b/g," ")
-    .replace(/\b\d+\+\b/g," ")
-    .replace(/\s+/g," ")
-    .trim();
+  if(!likelyProduct(name))
+   continue;
 
 
-  return x;
+  const context=
+   lines.slice(
+    Math.max(0,i-2),
+    Math.min(
+     lines.length,
+     i+2
+    )
+   )
+   .map(x=>x.text)
+   .join(" ");
+
+
+  const m=
+   mrps(
+    context
+   );
+
+
+  schemes.push({
+
+   name:name,
+
+   rates:[
+    ...new Set(rates)
+   ].sort(
+    (a,b)=>a-b
+   ),
+
+   mrps:m,
+
+   raw:context
+  });
+ }
+
+
+ /*
+  Merge visually duplicated OCR rows.
+ */
+
+ const merged=[];
+
+
+ for(const s of schemes){
+
+  const key=clean(
+   s.name
+  );
+
+
+  const existing=
+   merged.find(
+    x=>clean(x.name)===key
+   );
+
+
+  if(existing){
+
+   existing.rates=[
+    ...new Set([
+     ...existing.rates,
+     ...s.rates
+    ])
+   ].sort(
+    (a,b)=>a-b
+   );
+
+
+   existing.mrps=[
+    ...new Set([
+     ...existing.mrps,
+     ...s.mrps
+    ])
+   ];
+
+  }else{
+
+   merged.push({
+    name:s.name,
+    rates:[...s.rates],
+    mrps:[...s.mrps],
+    raw:s.raw
+   });
+  }
+ }
+
+
+ /*
+  Remove obvious false OCR headings.
+ */
+
+ return merged.filter(s=>{
+
+  const x=clean(s.name);
+
+  if(!x)return false;
+
+  if(
+   x==="liability" ||
+   x==="scheme" ||
+   x==="product" ||
+   x==="products"
+  )
+   return false;
+
+  return s.rates.length>0;
+ });
 }
 
 
-function productSimilarity(
-  purchaseName,
-  schemeName
+/* =========================================================
+   DISPLAY / ALLOW USER TO CORRECT OCR
+========================================================= */
+
+function showDetected(){
+
+ const body=$("schemeBody");
+
+ body.innerHTML="";
+
+
+ detectedSchemes.forEach(
+  (s,index)=>{
+
+   const tr=
+    document.createElement("tr");
+
+
+   tr.innerHTML=`
+
+    <td>
+      <input
+       data-i="${index}"
+       data-field="name"
+       value="${escapeHtml(s.name)}"
+      >
+    </td>
+
+    <td>
+      <input
+       data-i="${index}"
+       data-field="mrp"
+       value="${
+        s.mrps.length
+         ? s.mrps.join(", ")
+         : ""
+       }"
+       placeholder="Blank = all MRPs"
+      >
+    </td>
+
+    <td>
+      <input
+       data-i="${index}"
+       data-field="rates"
+       value="${
+        s.rates.join(", ")
+       }"
+      >
+    </td>
+
+   `;
+
+
+   body.appendChild(tr);
+  }
+ );
+
+
+ $("detectedCard")
+  .classList.remove(
+   "hidden"
+  );
+}
+
+
+/* =========================================================
+   SAVE EDITED DETECTIONS
+========================================================= */
+
+function readEditedSchemes(){
+
+ const inputs=
+  $("schemeBody")
+   .querySelectorAll("input");
+
+
+ inputs.forEach(input=>{
+
+  const i=
+   Number(
+    input.dataset.i
+   );
+
+  const field=
+   input.dataset.field;
+
+
+  if(field==="name"){
+
+   detectedSchemes[i].name=
+    input.value.trim();
+  }
+
+
+  if(field==="mrp"){
+
+   detectedSchemes[i].mrps=
+    input.value
+     .split(",")
+     .map(x=>parseFloat(x.trim()))
+     .filter(x=>isFinite(x));
+  }
+
+
+  if(field==="rates"){
+
+   detectedSchemes[i].rates=
+    input.value
+     .split(",")
+     .map(x=>parseFloat(x.trim()))
+     .filter(
+      x=>isFinite(x)&&x>0&&x<=100
+     )
+     .sort(
+      (a,b)=>a-b
+     );
+  }
+ });
+
+
+ detectedSchemes=
+  detectedSchemes.filter(
+   s=>
+    s.name &&
+    s.rates.length
+  );
+}
+
+
+/* =========================================================
+   PRODUCT MATCHING
+========================================================= */
+
+const STOPWORDS=new Set([
+
+ "parle",
+ "products",
+ "product",
+ "regular",
+ "extra",
+ "mrp",
+ "pkt",
+ "pack",
+ "packs",
+ "gm",
+ "kg",
+ "bag",
+ "bags",
+ "piece",
+ "pieces",
+ "of",
+ "the",
+ "and",
+ "with",
+ "free",
+ "new",
+ "range",
+ "scheme"
+
+]);
+
+
+function tokens(text){
+
+ return clean(text)
+  .split(" ")
+  .filter(
+   x=>
+    x.length>=2 &&
+    !STOPWORDS.has(x) &&
+    !/^\d+(?:\.\d+)?$/.test(x)
+  );
+}
+
+
+function similarity(purchase,scheme){
+
+ const p=tokens(
+  purchase
+ );
+
+ const s=tokens(
+  scheme
+ );
+
+
+ if(!p.length||!s.length)
+  return 0;
+
+
+ let matched=0;
+
+
+ for(const word of s){
+
+  if(
+   p.some(
+    x=>
+     x===word ||
+     (
+      word.length>=5 &&
+      x.length>=5 &&
+      (
+       x.includes(word) ||
+       word.includes(x)
+      )
+     )
+   )
+  )
+   matched++;
+ }
+
+
+ return matched/s.length;
+}
+
+
+/* =========================================================
+   MRP MATCH
+========================================================= */
+
+function purchaseMRPs(name){
+
+ const out=[];
+
+
+ let re=
+  /mrp\s*[-:=]?\s*(\d+(?:\.\d+)?)/gi;
+
+ let m;
+
+
+ while(
+  (m=re.exec(name))!==null
+ ){
+  out.push(
+   parseFloat(m[1])
+  );
+ }
+
+
+ /*
+  Common product SKU format:
+  "MRP -10.00"
+ */
+
+ re=/-\s*(\d+(?:\.\d+)?)\s*$/;
+
+ m=re.exec(name);
+
+ if(m)
+  out.push(
+   parseFloat(m[1])
+  );
+
+
+ return [
+  ...new Set(out)
+ ];
+}
+
+
+function mrpCompatible(
+ purchaseName,
+ scheme
 ){
 
-  const p=cleanText(
-    purchaseName
-  );
+ /*
+  If chart gives no MRP:
+  all MRPs are eligible.
+ */
 
-  const s=cleanText(
-    schemeName
-  );
-
-
-  if(!p || !s)
-    return false;
-
-
-  /*
-    Special current-month combined Confy head.
-  */
-
-  if(
-    s.includes("confy") &&
-    (
-      s.includes("pouch") ||
-      s.includes("jar")
-    )
-  ){
-
-    return isConfyProduct(
-      purchaseName
-    );
-  }
+ if(
+  !scheme.mrps ||
+  !scheme.mrps.length
+ )
+  return true;
 
 
-  /*
-    Important known product families.
-    This is ONLY matching.
-    Liability still comes from current chart.
-  */
-
-  if(
-    s.includes("parle") &&
-    s.includes("g") &&
-    s.includes("classic")
-  ){
-
-    return (
-      p.includes("parle g classic")
-    );
-  }
-
-
-  if(
-    s.includes("parle") &&
-    s.includes("g") &&
-    s.includes("gold")
-  ){
-
-    return (
-      p.includes("parle g gold")
-    );
-  }
-
-
-  if(s.includes("magix"))
-    return p.includes("magix");
-
-
-  if(s.includes("dhinchak"))
-    return p.includes("dhinchak");
-
-
-  if(s.includes("bourbon"))
-    return p.includes("bourbon");
-
-
-  if(s.includes("rusk"))
-    return p.includes("rusk");
-
-
-  if(s.includes("atta"))
-    return p.includes("atta");
-
-
-  if(
-    s.includes("20 20") ||
-    s.includes("2020")
-  ){
-
-    return (
-      p.includes("20 20") &&
-      (
-        p.includes("butter") ||
-        p.includes("cashew")
-      )
-    );
-  }
-
-
-  /*
-    Generic fallback.
-  */
-
-  const words =
-    s.split(" ")
-      .filter(
-        w =>
-          w.length>=3 &&
-          ![
-            "the",
-            "and",
-            "regular",
-            "extra",
-            "scheme",
-            "product"
-          ].includes(w)
-      );
-
-
-  if(!words.length)
-    return false;
-
-
-  let score=0;
-
-
-  words.forEach(
-    w=>{
-      if(p.includes(w))
-        score++;
-    }
+ const pm=
+  purchaseMRPs(
+   purchaseName
   );
 
 
-  return (
-    score >=
-    Math.max(
-      1,
-      Math.ceil(words.length*.55)
-    )
-  );
+ /*
+  If purchase SKU has no readable MRP,
+  don't reject it solely because OCR missed it.
+ */
+
+ if(!pm.length)
+  return true;
+
+
+ return pm.some(
+  p=>
+   scheme.mrps.some(
+    m=>
+     Math.abs(p-m)<0.01
+   )
+ );
 }
 
 
 /* =========================================================
-   CONFY
+   BEST SCHEME MATCH
 ========================================================= */
 
-function isConfyProduct(name){
+function findScheme(product){
 
-  const x=cleanText(name);
-
-
-  if(!x.includes("confy"))
-    return false;
+ let best=null;
+ let bestScore=0;
 
 
-  /*
-    Melody is excluded.
-  */
+ for(const scheme of detectedSchemes){
 
-  if(x.includes("melody"))
-    return false;
+  if(!mrpCompatible(
+   product,
+   scheme
+  ))
+   continue;
 
 
-  /*
-    Pouch and Jar together.
-  */
+  const score=
+   similarity(
+    product,
+    scheme.name
+   );
 
-  return (
-    x.includes("pb") ||
-    x.includes("pbg") ||
-    x.includes("rol") ||
-    x.includes("roll") ||
-    x.includes("jar") ||
-    x.includes("funtoosh")
-  );
+
+  if(score>bestScore){
+
+   bestScore=score;
+   best=scheme;
+  }
+ }
+
+
+ /*
+  Require meaningful matching.
+
+  A one-word scheme name can match with one word.
+  Longer scheme names need stronger overlap.
+ */
+
+ if(best){
+
+  const wordCount=
+   tokens(best.name).length;
+
+
+  const threshold=
+   wordCount<=1
+    ? 1
+    : wordCount===2
+      ? .5
+      : .5;
+
+
+  if(bestScore>=threshold)
+   return best;
+ }
+
+
+ return null;
 }
 
 
 /* =========================================================
-   BUILD SCHEME ROWS
+   CALCULATION
 ========================================================= */
 
-function parseSchemeChart(text){
+function calculate(){
 
-  const lines =
-    text
-      .split(/\r?\n/)
-      .map(
-        x=>x.trim()
-      )
-      .filter(Boolean);
-
-
-  const result=[];
+ const months=[
+  ...new Set(
+   purchaseRows.map(
+    r=>monthKey(r.date)
+   )
+  )
+ ].sort();
 
 
-  for(
-    let i=0;
-    i<lines.length;
-    i++
-  ){
+ if(months.length<2){
 
-    const current=lines[i];
-
-    const rates =
-      findPercentages(
-        current
-      );
+  throw new Error(
+   "The purchase Excel must contain at least two months of purchase data."
+  );
+ }
 
 
-    /*
-      Sometimes OCR puts product on one line
-      and liability on the next line.
-    */
+ const m2=
+  months[months.length-1];
 
-    const next =
-      i+1<lines.length
-        ? findPercentages(
-            lines[i+1]
-          )
-        : [];
+ const m1=
+  months[months.length-2];
 
 
-    const allRates=[
-      ...rates,
-      ...next
-    ];
+ /*
+  Group by detected current-month scheme.
+
+  This is important:
+  We do NOT use the purchase product list as
+  the scheme list.
+ */
+
+ const groups=new Map();
 
 
-    if(!allRates.length)
-      continue;
+ for(const row of purchaseRows){
+
+  const mk=
+   monthKey(row.date);
 
 
-    let name=current;
+  if(
+   mk!==m1 &&
+   mk!==m2
+  )
+   continue;
 
 
-    /*
-      If current line contains almost no letters,
-      use previous line as product name.
-    */
-
-    const letters =
-      (
-        current.match(
-          /[A-Za-z]{3,}/g
-        ) || []
-      ).length;
+  const scheme=
+   findScheme(
+    row.name
+   );
 
 
-    if(
-      letters<=1 &&
-      i>0
-    ){
+  if(!scheme)
+   continue;
 
-      name=lines[i-1];
+
+  const key=
+   scheme.name;
+
+
+  if(!groups.has(key)){
+
+   groups.set(
+    key,
+    {
+     product:scheme.name,
+     scheme:scheme,
+     month1:0,
+     month2:0
     }
-
-
-    const normalized =
-      cleanText(name);
-
-
-    const productWords=[
-      "parle",
-      "magix",
-      "dhinchak",
-      "bourbon",
-      "confy",
-      "rusk",
-      "atta",
-      "20 20",
-      "2020",
-      "platina"
-    ];
-
-
-    const looksLikeProduct =
-      productWords.some(
-        word =>
-          normalized.includes(word)
-      );
-
-
-    if(!looksLikeProduct)
-      continue;
-
-
-    const context =
-      lines.slice(
-        Math.max(0,i-1),
-        Math.min(
-          lines.length,
-          i+2
-        )
-      ).join(" ");
-
-
-    result.push({
-
-      name:schemeProductName(name),
-
-      rates:[
-        ...new Set(allRates)
-      ].sort(
-        (a,b)=>a-b
-      ),
-
-      mrps:findMRPs(context),
-
-      raw:context
-    });
+   );
   }
 
 
+  const g=
+   groups.get(key);
+
+
+  if(mk===m1)
+   g.month1+=row.gross;
+
+
+  if(mk===m2)
+   g.month2+=row.gross;
+ }
+
+
+ const rows=[];
+
+
+ for(const g of groups.values()){
+
+  const average=
+   (
+    g.month1+
+    g.month2
+   )/2;
+
+
+  const gate=
+   average*1.05;
+
+
   /*
-    Merge duplicate OCR detections.
+   Current chart liability.
+
+   When several slab percentages are detected,
+   the highest rate in that current chart row
+   is used.
   */
 
-  const merged=[];
+  const liability=
+   Math.max(
+    ...(g.scheme.rates||[0])
+   );
 
 
-  result.forEach(r=>{
-
-    const existing =
-      merged.find(
-        x =>
-          cleanText(x.name) ===
-          cleanText(r.name)
-      );
+  const claim=
+   gate*liability/100;
 
 
-    if(existing){
+  rows.push({
 
-      existing.rates=[
-        ...new Set([
-          ...existing.rates,
-          ...r.rates
-        ])
-      ];
+   product:g.product,
 
-      existing.rates.sort(
-        (a,b)=>a-b
-      );
+   month1:g.month1,
 
+   month2:g.month2,
 
-      existing.mrps=[
-        ...new Set([
-          ...existing.mrps,
-          ...r.mrps
-        ])
-      ];
+   average:average,
 
-    }else{
+   gate:gate,
 
-      merged.push(r);
-    }
+   liability:liability,
+
+   claim:claim
   });
+ }
 
 
-  /*
-    Combined Confy Pouch & Jar.
-  */
-
-  const confy =
-    merged.filter(
-      r =>
-        cleanText(r.name).includes("confy") &&
-        (
-          cleanText(r.name).includes("pouch") ||
-          cleanText(r.name).includes("jar")
-        )
-    );
+ rows.sort(
+  (a,b)=>
+   b.claim-a.claim
+ );
 
 
-  if(confy.length){
-
-    const rates =
-      confy.flatMap(
-        x=>x.rates
-      );
-
-
-    return [
-      ...merged.filter(
-        r =>
-          !(
-            cleanText(r.name).includes("confy") &&
-            (
-              cleanText(r.name).includes("pouch") ||
-              cleanText(r.name).includes("jar")
-            )
-          )
-      ),
-
-      {
-        name:"CONFY POUCH & JAR",
-
-        rates:[
-          Math.max(...rates)
-        ],
-
-        mrps:[],
-
-        combined:true
-      }
-    ];
-  }
+ const total=
+  rows.reduce(
+   (a,b)=>
+    a+b.claim,
+   0
+  );
 
 
-  return merged;
+ return{
+
+  month1:m1,
+  month2:m2,
+  rows:rows,
+  total:total
+ };
 }
 
 
 /* =========================================================
-   GET SCHEME FOR PURCHASE PRODUCT
+   RENDER
 ========================================================= */
 
-function getScheme(product){
-
-  for(
-    const scheme of parsedSchemes
-  ){
-
-    if(
-      scheme.combined &&
-      isConfyProduct(product)
-    ){
-
-      return scheme;
-    }
-
-
-    if(
-      !scheme.combined &&
-      productSimilarity(
-        product,
-        scheme.name
-      )
-    ){
-
-      /*
-        If chart explicitly gives MRP,
-        require exact MRP where the purchase SKU
-        contains an explicit MRP.
-      */
-
-      if(
-        scheme.mrps &&
-        scheme.mrps.length
-      ){
-
-        const m =
-          cleanText(product).match(
-            /mrp\s*[-:]?\s*(\d+(?:\.\d+)?)/i
-          );
-
-
-        if(m){
-
-          const purchaseMRP =
-            parseFloat(m[1]);
-
-
-          const exact =
-            scheme.mrps.some(
-              x =>
-                Math.abs(
-                  x-purchaseMRP
-                ) < .01
-            );
-
-
-          if(!exact)
-            continue;
-        }
-      }
-
-
-      return scheme;
-    }
-  }
-
-
-  return null;
-}
-
-
-/* =========================================================
-   CALCULATE
-========================================================= */
-
-let parsedSchemes=[];
-
-
-function calculateClaim(rows){
-
-  /*
-    Find all purchase months.
-  */
-
-  const months=[
-    ...new Set(
-      rows
-        .map(
-          r=>monthKey(r.date)
-        )
-    )
-  ].sort();
-
-
-  if(months.length<2){
-
-    throw new Error(
-      "At least two purchase months are required."
-    );
-  }
-
-
-  /*
-    Latest two complete months in uploaded purchase data.
-  */
-
-  const month2 =
-    months[months.length-1];
-
-  const month1 =
-    months[months.length-2];
-
-
-  const groups={};
-
-
-  rows.forEach(r=>{
-
-    const mk=
-      monthKey(r.date);
-
-
-    if(
-      mk!==month1 &&
-      mk!==month2
-    )
-      return;
-
-
-    const scheme =
-      getScheme(r.product);
-
-
-    if(!scheme)
-      return;
-
-
-    /*
-      Confy Pouch & Jar are combined.
-    */
-
-    const key =
-      scheme.combined
-        ? "CONFY POUCH & JAR"
-        : r.product;
-
-
-    if(!groups[key]){
-
-      groups[key]={
-
-        product:
-          scheme.combined
-            ? "CONFY POUCH & JAR"
-            : r.product,
-
-        scheme:scheme,
-
-        month1:0,
-
-        month2:0
-      };
-    }
-
-
-    if(mk===month1){
-
-      groups[key].month1 +=
-        r.gross;
-    }
-
-
-    if(mk===month2){
-
-      groups[key].month2 +=
-        r.gross;
-    }
-  });
-
-
-  const output=[];
-
-
-  Object.values(groups)
-    .forEach(g=>{
-
-      const average =
-        (
-          g.month1+
-          g.month2
-        )/2;
-
-
-      /*
-        Gate = average × 1.05
-      */
-
-      const gate =
-        average*1.05;
-
-
-      /*
-        Current month chart:
-        highest applicable liability rate.
-      */
-
-      const liability =
-        Math.max(
-          ...(g.scheme.rates || [0])
-        );
-
-
-      /*
-        Claim = Gate × Liability %
-      */
-
-      const claim =
-        gate*liability/100;
-
-
-      output.push({
-
-        product:g.product,
-
-        month1:g.month1,
-
-        month2:g.month2,
-
-        average:average,
-
-        gate:gate,
-
-        liability:liability,
-
-        claim:claim
-      });
-    });
-
-
-  output.sort(
-    (a,b)=>
-      b.claim-a.claim
+function render(report){
+
+ $("resultCard")
+  .classList.remove(
+   "hidden"
+  );
+
+ $("reportCard")
+  .classList.remove(
+   "hidden"
   );
 
 
-  const total =
-    output.reduce(
-      (sum,r)=>
-        sum+r.claim,
-      0
-    );
+ $("m1").textContent=
+  monthName(report.month1);
+
+ $("m2").textContent=
+  monthName(report.month2);
+
+ $("total").textContent=
+  money(report.total);
+
+ $("total2").textContent=
+  money(report.total);
 
 
-  return {
+ const body=
+  $("reportBody");
 
-    month1:month1,
-
-    month2:month2,
-
-    rows:output,
-
-    total:total
-  };
-}
+ body.innerHTML="";
 
 
-/* =========================================================
-   RENDER REPORT
-========================================================= */
+ report.rows.forEach(row=>{
 
-function renderReport(report){
-
-  resultCard.classList.remove(
-    "hidden"
-  );
-
-  reportCard.classList.remove(
-    "hidden"
-  );
+  const tr=
+   document.createElement("tr");
 
 
-  document.getElementById(
-    "month1"
-  ).textContent=
-    monthDisplay(
-      report.month1
-    );
+  tr.innerHTML=`
+
+   <td>
+    ${escapeHtml(row.product)}
+   </td>
+
+   <td class="right">
+    ${money(row.month1)}
+   </td>
+
+   <td class="right">
+    ${money(row.month2)}
+   </td>
+
+   <td class="right">
+    ${money(row.average)}
+   </td>
+
+   <td class="right">
+    ${money(row.gate)}
+   </td>
+
+   <td class="center">
+    ${Number(row.liability).toFixed(2)}%
+   </td>
+
+   <td class="right bold">
+    ${money(row.claim)}
+   </td>
+
+  `;
 
 
-  document.getElementById(
-    "month2"
-  ).textContent=
-    monthDisplay(
-      report.month2
-    );
-
-
-  document.getElementById(
-    "totalClaim"
-  ).textContent=
-    displayMoney(
-      report.total
-    );
-
-
-  document.getElementById(
-    "bottomTotal"
-  ).textContent=
-    displayMoney(
-      report.total
-    );
-
-
-  reportBody.innerHTML="";
-
-
-  report.rows.forEach(
-    row=>{
-
-      const tr=
-        document.createElement("tr");
-
-
-      tr.innerHTML=`
-
-        <td>
-          ${escapeHtml(
-            row.product
-          )}
-        </td>
-
-        <td class="num">
-          ${displayMoney(
-            row.month1
-          )}
-        </td>
-
-        <td class="num">
-          ${displayMoney(
-            row.month2
-          )}
-        </td>
-
-        <td class="num">
-          ${displayMoney(
-            row.average
-          )}
-        </td>
-
-        <td class="num">
-          ${displayMoney(
-            row.gate
-          )}
-        </td>
-
-        <td class="center">
-          ${Number(
-            row.liability
-          ).toFixed(2)}%
-        </td>
-
-        <td class="num claim">
-          ${displayMoney(
-            row.claim
-          )}
-        </td>
-
-      `;
-
-
-      reportBody.appendChild(tr);
-    }
-  );
-}
-
-
-function escapeHtml(text){
-
-  return String(text ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;");
+  body.appendChild(tr);
+ });
 }
 
 
@@ -1640,617 +1650,569 @@ function escapeHtml(text){
 
 function makePDF(report){
 
-  if(
-    !window.jspdf ||
-    !window.jspdf.jsPDF
-  ){
-
-    throw new Error(
-      "PDF library is not loaded. Please refresh the page and try again."
-    );
-  }
+ if(
+  !window.jspdf ||
+  !window.jspdf.jsPDF
+ )
+  throw new Error(
+   "PDF library did not load. Refresh the page and try again."
+  );
 
 
-  const jsPDF =
-    window.jspdf.jsPDF;
+ const jsPDF=
+  window.jspdf.jsPDF;
 
 
-  const doc =
-    new jsPDF({
-      orientation:"landscape",
-      unit:"mm",
-      format:"a4"
-    });
+ const doc=
+  new jsPDF({
+   orientation:"landscape",
+   unit:"mm",
+   format:"a4"
+  });
 
 
-  const pageWidth =
-    doc.internal.pageSize.getWidth();
+ const W=
+  doc.internal.pageSize.getWidth();
 
-  const pageHeight =
-    doc.internal.pageSize.getHeight();
+ const H=
+  doc.internal.pageSize.getHeight();
 
 
-  const left=7;
+ const left=6;
 
-  const columns=[
-    ["Product / Scheme",76],
-    ["Month 1",30],
-    ["Month 2",30],
-    ["Average",32],
-    ["Gate",32],
-    ["Liability %",27],
-    ["Claim Amount",39]
-  ];
 
+ const cols=[
+  ["Product / Scheme",77],
+  ["Month 1",31],
+  ["Month 2",31],
+  ["Average",32],
+  ["Gate",32],
+  ["Liability %",28],
+  ["Claim Amount",39]
+ ];
+
+
+ function header(y){
+
+  let x=left;
 
   doc.setFont(
-    "helvetica",
-    "bold"
-  );
-
-  doc.setFontSize(16);
-
-
-  doc.text(
-    "MONTHLY SCHEME CLAIM REPORT",
-    pageWidth/2,
-    12,
-    {
-      align:"center"
-    }
-  );
-
-
-  doc.setFont(
-    "helvetica",
-    "normal"
-  );
-
-  doc.setFontSize(8);
-
-
-  doc.text(
-    "Purchase Months: "+
-    monthDisplay(report.month1)+
-    " and "+
-    monthDisplay(report.month2),
-    pageWidth/2,
-    19,
-    {
-      align:"center"
-    }
-  );
-
-
-  function drawHeader(y){
-
-    let x=left;
-
-
-    doc.setFont(
-      "helvetica",
-      "bold"
-    );
-
-    doc.setFontSize(7.5);
-
-
-    columns.forEach(
-      column=>{
-
-        doc.rect(
-          x,
-          y,
-          column[1],
-          8
-        );
-
-
-        doc.text(
-          column[0],
-          x+column[1]/2,
-          y+5.2,
-          {
-            align:"center"
-          }
-        );
-
-
-        x+=column[1];
-      }
-    );
-  }
-
-
-  let y=27;
-
-  drawHeader(y);
-
-  y+=8;
-
-
-  report.rows.forEach(
-    row=>{
-
-      const product =
-        String(
-          row.product || ""
-        )
-        .replace(/₹/g,"Rs.")
-        .replace(/[^\x20-\x7E]/g," ");
-
-
-      const productLines =
-        doc.splitTextToSize(
-          product,
-          columns[0][1]-3
-        );
-
-
-      const rowHeight =
-        Math.max(
-          8,
-          productLines.length*3.5+3
-        );
-
-
-      if(
-        y+rowHeight >
-        pageHeight-18
-      ){
-
-        doc.addPage();
-
-        y=15;
-
-        drawHeader(y);
-
-        y+=8;
-      }
-
-
-      let x=left;
-
-
-      doc.setFont(
-        "helvetica",
-        "normal"
-      );
-
-      doc.setFontSize(7);
-
-
-      /*
-        Product
-      */
-
-      doc.rect(
-        x,
-        y,
-        columns[0][1],
-        rowHeight
-      );
-
-
-      doc.text(
-        productLines,
-        x+1.5,
-        y+4.2
-      );
-
-
-      x+=columns[0][1];
-
-
-      /*
-        Money columns
-      */
-
-      const moneyValues=[
-        row.month1,
-        row.month2,
-        row.average,
-        row.gate
-      ];
-
-
-      for(
-        let i=0;
-        i<moneyValues.length;
-        i++
-      ){
-
-        doc.rect(
-          x,
-          y,
-          columns[i+1][1],
-          rowHeight
-        );
-
-
-        doc.text(
-          pdfMoney(
-            moneyValues[i]
-          ),
-          x+columns[i+1][1]-1.5,
-          y+rowHeight/2+1.8,
-          {
-            align:"right"
-          }
-        );
-
-
-        x+=columns[i+1][1];
-      }
-
-
-      /*
-        Liability
-      */
-
-      doc.rect(
-        x,
-        y,
-        columns[5][1],
-        rowHeight
-      );
-
-
-      doc.text(
-        Number(
-          row.liability
-        ).toFixed(2)+"%",
-        x+columns[5][1]/2,
-        y+rowHeight/2+1.8,
-        {
-          align:"center"
-        }
-      );
-
-
-      x+=columns[5][1];
-
-
-      /*
-        Claim
-      */
-
-      doc.setFont(
-        "helvetica",
-        "bold"
-      );
-
-
-      doc.rect(
-        x,
-        y,
-        columns[6][1],
-        rowHeight
-      );
-
-
-      doc.text(
-        pdfMoney(
-          row.claim
-        ),
-        x+columns[6][1]-1.5,
-        y+rowHeight/2+1.8,
-        {
-          align:"right"
-        }
-      );
-
-
-      y+=rowHeight;
-    }
-  );
-
-
-  if(
-    y+15 >
-    pageHeight-8
-  ){
-
-    doc.addPage();
-
-    y=18;
-  }
-
-
-  doc.setFont(
-    "helvetica",
-    "bold"
-  );
-
-  doc.setFontSize(10);
-
-
-  doc.text(
-    "TOTAL CLAIM",
-    pageWidth-70,
-    y+8
-  );
-
-
-  doc.text(
-    pdfMoney(
-      report.total
-    ),
-    pageWidth-8,
-    y+8,
-    {
-      align:"right"
-    }
-  );
-
-
-  doc.setFont(
-    "helvetica",
-    "normal"
+   "helvetica",
+   "bold"
   );
 
   doc.setFontSize(7);
 
 
-  doc.text(
-    "Generated by Monthly Scheme Claim Calculator",
-    pageWidth/2,
-    pageHeight-6,
+  cols.forEach(c=>{
+
+   doc.rect(
+    x,
+    y,
+    c[1],
+    8
+   );
+
+
+   doc.text(
+    c[0],
+    x+c[1]/2,
+    y+5,
     {
-      align:"center"
+     align:"center"
     }
+   );
+
+
+   x+=c[1];
+  });
+ }
+
+
+ doc.setFont(
+  "helvetica",
+  "bold"
+ );
+
+ doc.setFontSize(15);
+
+
+ doc.text(
+  "MONTHLY SCHEME CLAIM REPORT",
+  W/2,
+  11,
+  {
+   align:"center"
+  }
+ );
+
+
+ doc.setFont(
+  "helvetica",
+  "normal"
+ );
+
+ doc.setFontSize(8);
+
+
+ doc.text(
+  "Purchase Months: "+
+  monthName(report.month1)+
+  " and "+
+  monthName(report.month2),
+  W/2,
+  17,
+  {
+   align:"center"
+  }
+ );
+
+
+ let y=24;
+
+ header(y);
+
+ y+=8;
+
+
+ report.rows.forEach(row=>{
+
+  const product=
+   String(row.product||"")
+    .replace(/₹/g,"Rs.")
+    .replace(/[^\x20-\x7E]/g," ");
+
+
+  const lines=
+   doc.splitTextToSize(
+    product,
+    cols[0][1]-3
+   );
+
+
+  const h=
+   Math.max(
+    8,
+    lines.length*3.5+3
+   );
+
+
+  if(y+h>H-17){
+
+   doc.addPage();
+
+   y=14;
+
+   header(y);
+
+   y+=8;
+  }
+
+
+  let x=left;
+
+
+  doc.setFont(
+   "helvetica",
+   "normal"
+  );
+
+  doc.setFontSize(7);
+
+
+  doc.rect(
+   x,
+   y,
+   cols[0][1],
+   h
   );
 
 
-  doc.save(
-    "Scheme_Claim_"+
-    report.month1+
-    "_"+
-    report.month2+
-    ".pdf"
+  doc.text(
+   lines,
+   x+1.5,
+   y+4
   );
+
+
+  x+=cols[0][1];
+
+
+  const vals=[
+   row.month1,
+   row.month2,
+   row.average,
+   row.gate
+  ];
+
+
+  vals.forEach(
+   (v,i)=>{
+
+    doc.rect(
+     x,
+     y,
+     cols[i+1][1],
+     h
+    );
+
+
+    doc.text(
+     pdfMoney(v),
+     x+cols[i+1][1]-1.5,
+     y+h/2+1.8,
+     {
+      align:"right"
+     }
+    );
+
+
+    x+=cols[i+1][1];
+   }
+  );
+
+
+  doc.rect(
+   x,
+   y,
+   cols[5][1],
+   h
+  );
+
+
+  doc.text(
+   Number(
+    row.liability
+   ).toFixed(2)+"%",
+   x+cols[5][1]/2,
+   y+h/2+1.8,
+   {
+    align:"center"
+   }
+  );
+
+
+  x+=cols[5][1];
+
+
+  doc.setFont(
+   "helvetica",
+   "bold"
+  );
+
+
+  doc.rect(
+   x,
+   y,
+   cols[6][1],
+   h
+  );
+
+
+  doc.text(
+   pdfMoney(row.claim),
+   x+cols[6][1]-1.5,
+   y+h/2+1.8,
+   {
+    align:"right"
+   }
+  );
+
+
+  y+=h;
+ });
+
+
+ if(y+13>H-9){
+
+  doc.addPage();
+
+  y=18;
+ }
+
+
+ doc.setFont(
+  "helvetica",
+  "bold"
+ );
+
+ doc.setFontSize(10);
+
+
+ doc.text(
+  "TOTAL CLAIM",
+  W-75,
+  y+7
+ );
+
+
+ doc.text(
+  pdfMoney(report.total),
+  W-7,
+  y+7,
+  {
+   align:"right"
+  }
+ );
+
+
+ doc.setFont(
+  "helvetica",
+  "normal"
+ );
+
+ doc.setFontSize(7);
+
+
+ doc.text(
+  "Generated by Monthly Scheme Claim Calculator",
+  W/2,
+  H-5,
+  {
+   align:"center"
+  }
+ );
+
+
+ doc.save(
+  "Scheme_Claim_"+
+  report.month1+
+  "_"+
+  report.month2+
+  ".pdf"
+ );
 }
 
 
 /* =========================================================
-   MAIN BUTTON
+   GENERATE BUTTON
 ========================================================= */
 
-generateButton.addEventListener(
-  "click",
-  async function(){
+$("generate").addEventListener(
+ "click",
+ async()=>{
 
-    try{
+  try{
 
-      if(
-        !excelFile.files ||
-        !excelFile.files.length
-      ){
+   if(
+    !$("excel").files.length
+   ){
 
-        alert(
-          "Please upload the purchase Excel file."
-        );
+    alert(
+     "Please select the purchase Excel."
+    );
 
-        return;
-      }
-
-
-      if(
-        !schemeFile.files ||
-        !schemeFile.files.length
-      ){
-
-        alert(
-          "Please upload the current month scheme chart."
-        );
-
-        return;
-      }
+    return;
+   }
 
 
-      generateButton.disabled=true;
+   if(
+    !$("chart").files.length
+   ){
 
-      pdfButton.disabled=true;
+    alert(
+     "Please select the current scheme chart."
+    );
 
-      resultCard.classList.add(
-        "hidden"
-      );
-
-      reportCard.classList.add(
-        "hidden"
-      );
-
-
-      setStatus(
-        "Reading purchase Excel..."
-      );
+    return;
+   }
 
 
-      const purchases =
-        await readExcel(
-          excelFile.files[0]
-        );
+   $("generate").disabled=true;
 
 
-      setStatus(
-        "Reading current month scheme chart..."
-      );
+   $("status").textContent=
+    "Reading purchase Excel...";
 
 
-      const chartText =
-        await readSchemeChart(
-          schemeFile.files[0]
-        );
+   purchaseRows=
+    await readPurchaseExcel(
+     $("excel").files[0]
+    );
 
 
-      if(
-        !chartText.trim()
-      ){
-
-        throw new Error(
-          "No text could be read from the scheme chart."
-        );
-      }
+   $("status").textContent=
+    "Reading current scheme chart...";
 
 
-      setStatus(
-        "Detecting current-month products and liability rates..."
-      );
+   const chartData=
+    await readChart(
+     $("chart").files[0]
+    );
 
 
-      parsedSchemes =
-        parseSchemeChart(
-          chartText
-        );
+   $("status").textContent=
+    "Understanding scheme table...";
 
 
-      if(
-        !parsedSchemes.length
-      ){
-
-        throw new Error(
-          "The current scheme chart could not be read clearly enough to identify scheme products and liability rates."
-        );
-      }
+   detectedSchemes=
+    parseChart(
+     chartData
+    );
 
 
-      setStatus(
-        "Calculating claim from Gross Amount..."
-      );
+   if(!detectedSchemes.length){
+
+    throw new Error(
+     "No scheme products and liability percentages could be detected from the chart. Please upload a clear PNG/JPG chart."
+    );
+   }
 
 
-      const report =
-        calculateClaim(
-          purchases
-        );
+   showDetected();
 
 
-      finalReport=report;
+   $("status").textContent=
+    "Scheme chart read. Please check the detected rules above, then tap Use These Rules & Generate Claim.";
 
+  }catch(e){
 
-      renderReport(
-        report
-      );
+   console.error(e);
 
+   $("status").textContent=
+    "Error: "+e.message;
 
-      pdfButton.disabled=false;
+   alert(
+    "Calculation Error:\n\n"+
+    e.message
+   );
 
+  }finally{
 
-      setStatus(
-        "Report generated successfully."
-      );
-
-
-    }catch(error){
-
-      console.error(error);
-
-
-      setStatus(
-        "Error: "+
-        (
-          error.message ||
-          String(error)
-        )
-      );
-
-
-      alert(
-        "Calculation Error:\n\n"+
-        (
-          error.message ||
-          String(error)
-        )
-      );
-
-
-    }finally{
-
-      generateButton.disabled=false;
-    }
-
+   $("generate").disabled=false;
   }
+ }
 );
 
 
 /* =========================================================
-   PDF BUTTON
+   CONTINUE
 ========================================================= */
 
-pdfButton.addEventListener(
-  "click",
-  function(){
+$("continue").addEventListener(
+ "click",
+ ()=>{
 
-    if(!finalReport){
+  try{
 
-      alert(
-        "Please generate the report first."
-      );
-
-      return;
-    }
+   readEditedSchemes();
 
 
-    try{
-
-      makePDF(
-        finalReport
-      );
-
-    }catch(error){
-
-      console.error(error);
+   if(!detectedSchemes.length)
+    throw new Error(
+     "No valid scheme rules remain."
+    );
 
 
-      alert(
-        "PDF Error:\n\n"+
-        (
-          error.message ||
-          String(error)
-        )
-      );
-    }
+   $("status").textContent=
+    "Calculating using current chart rules...";
+
+
+   finalReport=
+    calculate();
+
+
+   render(
+    finalReport
+   );
+
+
+   $("detectedCard")
+    .classList.add(
+     "hidden"
+    );
+
+
+   $("status").textContent=
+    "Report generated successfully.";
+
+
+   window.scrollTo({
+    top:$("resultCard").offsetTop-10,
+    behavior:"smooth"
+   });
+
+
+  }catch(e){
+
+   console.error(e);
+
+   $("status").textContent=
+    "Error: "+e.message;
+
+   alert(
+    "Calculation Error:\n\n"+
+    e.message
+   );
   }
+ }
 );
 
 
 /* =========================================================
-   FILE SELECTION STATUS
+   PDF
 ========================================================= */
 
-excelFile.addEventListener(
-  "change",
-  function(){
+$("pdf").addEventListener(
+ "click",
+ ()=>{
 
-    if(
-      excelFile.files &&
-      excelFile.files.length
-    ){
+  if(!finalReport){
 
-      setStatus(
-        "Purchase Excel selected: "+
-        excelFile.files[0].name
-      );
-    }
+   alert(
+    "Generate the report first."
+   );
+
+   return;
   }
+
+
+  try{
+
+   makePDF(
+    finalReport
+   );
+
+  }catch(e){
+
+   alert(
+    "PDF Error:\n\n"+
+    e.message
+   );
+  }
+ }
 );
 
 
-schemeFile.addEventListener(
-  "change",
-  function(){
+/* =========================================================
+   FILE STATUS
+========================================================= */
 
-    if(
-      schemeFile.files &&
-      schemeFile.files.length
-    ){
+$("excel").addEventListener(
+ "change",
+ ()=>{
 
-      setStatus(
-        "Scheme chart selected: "+
-        schemeFile.files[0].name
-      );
-    }
+  if($("excel").files.length){
+
+   $("status").textContent=
+    "Purchase Excel selected: "+
+    $("excel").files[0].name;
   }
+ }
+);
+
+
+$("chart").addEventListener(
+ "change",
+ ()=>{
+
+  if($("chart").files.length){
+
+   $("status").textContent=
+    "Scheme chart selected: "+
+    $("chart").files[0].name;
+  }
+ }
 );
 
 </script>

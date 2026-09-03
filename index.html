@@ -6,6 +6,7 @@
 <title>Scheme Claim Report</title>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <style>
@@ -15,82 +16,78 @@ body{
  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial;
  color:#172033
 }
-.container{
+main{
  max-width:850px;
  margin:auto;
- padding:25px 16px 50px
+ padding:22px 15px 50px
 }
-h1{margin:0 0 5px;font-size:28px}
-.subtitle{color:#667085;margin-bottom:20px}
 .card{
  background:#fff;
  border-radius:18px;
- padding:20px;
- margin:15px 0;
- box-shadow:0 2px 12px rgba(0,0,0,.08)
+ padding:18px;
+ margin:14px 0;
+ box-shadow:0 2px 12px #0001
 }
+h1{margin:0 0 5px;font-size:28px}
+.muted{color:#667085}
 label{
  display:block;
  font-weight:700;
  margin:16px 0 7px
 }
-input{
+input,button{
  width:100%;
- padding:13px;
+ box-sizing:border-box;
+ padding:14px;
+ border-radius:12px;
+ font-size:16px
+}
+input{
  border:1px solid #d0d5dd;
- border-radius:11px;
- font-size:16px;
- box-sizing:border-box
+ background:#fff
 }
 button{
- width:100%;
  border:0;
- border-radius:12px;
- padding:14px;
- margin-top:18px;
- background:#1457c5;
- color:white;
- font-size:16px;
- font-weight:700
+ background:#1257c7;
+ color:#fff;
+ font-weight:700;
+ margin-top:16px
 }
-button:disabled{opacity:.5}
-.status{
- margin-top:15px;
+#status{
+ margin-top:14px;
  padding:12px;
- background:#eef4ff;
- border-radius:10px
+ border-radius:10px;
+ background:#eef4ff
 }
 table{
  width:100%;
  border-collapse:collapse;
- margin-top:18px;
- font-size:12px
+ font-size:12px;
+ margin-top:14px
 }
 th,td{
  border:1px solid #ddd;
  padding:7px
 }
-th{
- background:#edf3fb
-}
+th{background:#edf3fb}
 td:not(:first-child),th:not(:first-child){
  text-align:right
 }
 .total{
  font-size:21px;
  font-weight:800;
- margin-top:20px
+ margin-top:18px
 }
 </style>
 </head>
 
 <body>
-
-<div class="container">
+<main>
 
 <h1>Scheme Claim Report</h1>
-<div class="subtitle">
-Automatic purchase calculation
+
+<div class="muted">
+Automatic Excel + scheme chart calculator
 </div>
 
 <div class="card">
@@ -99,19 +96,19 @@ Automatic purchase calculation
 <input id="excel" type="file" accept=".xlsx,.xls,.csv">
 
 <label>Current Month Scheme Chart</label>
-<input id="chart" type="file" accept="image/*,.pdf">
+<input id="chart" type="file" accept="image/*">
 
-<button id="calculate">Generate Report</button>
+<button id="go">Generate Report</button>
 
-<div id="status" class="status">
-Upload both files and generate the report.
+<div id="status">
+Ready. Upload both files.
 </div>
 
 </div>
 
-<div id="result"></div>
+<div id="out"></div>
 
-</div>
+</main>
 
 <script>
 
@@ -124,19 +121,15 @@ function money(n){
  });
 }
 
-function number(v){
- if(typeof v==="number") return v;
-
+function num(v){
  let n=parseFloat(
-  String(v||"")
-  .replace(/[₹,\s]/g,"")
+  String(v??"").replace(/[₹,\s]/g,"")
  );
-
  return isNaN(n)?0:n;
 }
 
-function clean(v){
- return String(v||"")
+function clean(s){
+ return String(s??"")
  .toLowerCase()
  .replace(/[^a-z0-9.]/g," ")
  .replace(/\s+/g," ")
@@ -145,7 +138,7 @@ function clean(v){
 
 function getDate(v){
 
- if(v instanceof Date) return v;
+ if(v instanceof Date)return v;
 
  if(typeof v==="number"){
   return new Date(
@@ -215,298 +208,305 @@ function matchProduct(name,type){
 }
 
 
-/* CURRENT SCHEME RATES */
+/* DEFAULT SCHEME RATES */
 
-const schemes=[
-
- {
-  type:"pgclassic",
-  name:"Parle-G Classic ₹10",
-  rate:.04
- },
-
- {
-  type:"pggold",
-  name:"Parle-G Gold ₹10",
-  rate:.04
- },
-
- {
-  type:"magix",
-  name:"Magix",
-  rate:.08
- },
-
- {
-  type:"dhinchak",
-  name:"Dhinchak",
-  rate:.04
- },
-
- {
-  type:"rusk",
-  name:"Rusk",
-  rate:.04
- },
-
- {
-  type:"atta",
-  name:"Atta",
-  rate:.15
- },
-
- {
-  type:"2020",
-  name:"20-20 Butter + Cashew ₹5",
-  rate:.03
- },
-
- {
-  type:"pouch",
-  name:"Confy Pouch",
-  rate:.03
- },
-
- {
-  type:"jar",
-  name:"Confy Jar",
-  rate:.08
- }
-
+const base=[
+ ["pgclassic","Parle-G Classic ₹10",.04],
+ ["pggold","Parle-G Gold ₹10",.04],
+ ["magix","Magix",.08],
+ ["dhinchak","Dhinchak",.04],
+ ["rusk","Rusk",.04],
+ ["atta","Atta",.15],
+ ["2020","20-20 Butter + Cashew ₹5",.03],
+ ["pouch","Confy Pouch",.03],
+ ["jar","Confy Jar",.08]
 ];
 
 
-async function readExcel(file){
+/* READ EXCEL */
 
- status.innerText="Reading Excel...";
+async function excelRows(file){
 
- const buffer=await file.arrayBuffer();
+ status.innerText="Reading purchase Excel...";
 
- const workbook=XLSX.read(buffer,{
-  type:"array",
-  cellDates:true
- });
+ const wb=XLSX.read(
+  await file.arrayBuffer(),
+  {type:"array",cellDates:true}
+ );
 
- const sheet=
- workbook.Sheets[workbook.SheetNames[0]];
+ const ws=wb.Sheets[wb.SheetNames[0]];
 
- const data=
- XLSX.utils.sheet_to_json(
-  sheet,
+ const data=XLSX.utils.sheet_to_json(
+  ws,
   {header:1,defval:""}
  );
 
- let header=-1;
+ let header=data.findIndex(row=>
+  row.some(x=>
+   String(x).toLowerCase()
+   .includes("gross amount")
+  )
+ );
 
- for(let i=0;i<data.length;i++){
-
-  if(
-   data[i].some(x=>
-    String(x).toLowerCase()
-    .includes("gross amount")
-   )
-  ){
-   header=i;
-   break;
-  }
-
- }
-
- if(header===-1)
+ if(header<0)
   throw new Error(
-   "Gross Amount column was not found."
+   "Gross Amount column not found."
   );
 
- const headers=
- data[header].map(x=>
+ const h=data[header].map(x=>
   String(x).trim().toLowerCase()
  );
 
- const dateCol=
- headers.indexOf("grn date");
+ const dateCol=h.indexOf("grn date");
+ const nameCol=h.indexOf("product name");
+ const grossCol=h.indexOf("gross amount");
 
- const nameCol=
- headers.indexOf("product name");
-
- const grossCol=
- headers.indexOf("gross amount");
-
- if(
-  dateCol<0||
-  nameCol<0||
-  grossCol<0
- )
- throw new Error(
-  "GRN Date, Product Name or Gross Amount column missing."
- );
+ if(dateCol<0||nameCol<0||grossCol<0)
+  throw new Error(
+   "GRN Date, Product Name or Gross Amount is missing."
+  );
 
  return data
  .slice(header+1)
  .map(row=>({
-
   date:getDate(row[dateCol]),
-
   name:String(row[nameCol]||""),
-
-  gross:number(row[grossCol])
-
+  gross:num(row[grossCol])
  }))
  .filter(x=>x.date&&x.name);
-
 }
 
 
-function calculate(rows){
+/* READ SCHEME CHART USING OCR */
 
- let months={};
+async function readSchemeChart(file){
 
- rows.forEach(r=>{
+ status.innerText="Reading scheme chart...";
 
-  let key=monthKey(r.date);
+ const url=URL.createObjectURL(file);
 
-  if(!months[key])
-   months[key]=0;
+ const result=await Tesseract.recognize(
+  url,
+  "eng",
+  {
+   logger:m=>{
+    if(m.status==="recognizing text"){
+     status.innerText=
+      "Reading scheme chart... "+
+      Math.round((m.progress||0)*100)+"%";
+    }
+   }
+  }
+ );
 
-  months[key]+=r.gross;
+ URL.revokeObjectURL(url);
+
+ const text=clean(result.data.text);
+
+ let rates=base.map(x=>x.slice());
+
+ /*
+  Finds percentages near each scheme name.
+  The highest percentage shown for that scheme
+  is used as the liability rate.
+ */
+
+ rates.forEach(r=>{
+
+  let aliases=[];
+
+  if(r[0]==="pgclassic")
+   aliases=["parle g classic"];
+
+  if(r[0]==="pggold")
+   aliases=["parle g gold"];
+
+  if(r[0]==="magix")
+   aliases=["magix"];
+
+  if(r[0]==="dhinchak")
+   aliases=["dhinchak"];
+
+  if(r[0]==="rusk")
+   aliases=["rusk"];
+
+  if(r[0]==="atta")
+   aliases=["atta"];
+
+  if(r[0]==="2020")
+   aliases=["20 20"];
+
+  if(r[0]==="pouch")
+   aliases=["confy pouch"];
+
+  if(r[0]==="jar")
+   aliases=["confy jar"];
+
+  let position=-1;
+
+  for(const alias of aliases){
+   position=text.indexOf(alias);
+   if(position>=0)break;
+  }
+
+  if(position>=0){
+
+   let nearby=text.slice(
+    position,
+    position+350
+   );
+
+   let percentages=[
+    ...nearby.matchAll(
+     /(\d+(?:\.\d+)?)\s*%/g
+    )
+   ].map(x=>Number(x[1]));
+
+   if(percentages.length){
+    r[2]=Math.max(...percentages)/100;
+   }
+
+  }
 
  });
 
- let keys=Object.keys(months).sort();
+ return rates;
+}
 
- if(keys.length<2)
+
+/* CALCULATION */
+
+function calculate(rows,rates){
+
+ let months=[
+  ...new Set(
+   rows.map(r=>monthKey(r.date))
+  )
+ ].sort();
+
+ if(months.length<2)
   throw new Error(
-   "Two complete purchase months are required."
+   "At least two purchase months are required."
   );
 
- let month1=keys[keys.length-2];
- let month2=keys[keys.length-1];
+ /*
+  The two complete previous months are used.
+  No date is excluded.
+ */
+
+ let month1=months[months.length-2];
+ let month2=months[months.length-1];
 
  let results=[];
 
- schemes.forEach(s=>{
+ rates.forEach(s=>{
 
-  let selected=
-   rows.filter(r=>
-    matchProduct(r.name,s.type)
-   );
+  let products=rows.filter(r=>
+   matchProduct(r.name,s[0])
+  );
 
-  let a=
-   selected
+  let amount1=products
    .filter(r=>monthKey(r.date)===month1)
    .reduce((sum,r)=>sum+r.gross,0);
 
-  let b=
-   selected
+  let amount2=products
    .filter(r=>monthKey(r.date)===month2)
    .reduce((sum,r)=>sum+r.gross,0);
 
-  let average=(a+b)/2;
+  let average=(amount1+amount2)/2;
 
   let gate=average*1.05;
 
-  let claim=gate*s.rate;
+  let claim=gate*s[2];
 
   results.push({
-
-   name:s.name,
-
-   month1:a,
-
-   month2:b,
-
+   name:s[1],
+   month1:amount1,
+   month2:amount2,
    average:average,
-
    gate:gate,
-
-   rate:s.rate,
-
-   claim:claim
-
+   rate:s[2],
+   claim:claim,
+   skus:[
+    ...new Set(
+     products.map(r=>r.name)
+    )
+   ]
   });
 
  });
 
- return {
-
+ return{
   month1:month1,
-
   month2:month2,
-
   results:results,
-
   total:results.reduce(
    (sum,r)=>sum+r.claim,0
   )
-
  };
-
 }
 
 
-function showResult(calc){
+/* DISPLAY REPORT */
 
- let html="";
+function showReport(c){
 
- html+="<div class='card'>";
+ let html=
+ '<div class="card">'+
+ '<h2>Final Scheme Claim</h2>'+
+ '<p><b>Month 1:</b> '+c.month1+
+ ' &nbsp;&nbsp; <b>Month 2:</b> '+
+ c.month2+'</p>';
 
- html+="<h2>Final Scheme Claim</h2>";
+ html+=
+ '<table>'+
+ '<tr>'+
+ '<th>Scheme</th>'+
+ '<th>Month 1</th>'+
+ '<th>Month 2</th>'+
+ '<th>Average</th>'+
+ '<th>Gate</th>'+
+ '<th>Liability</th>'+
+ '<th>Claim</th>'+
+ '</tr>';
 
- html+="<p><b>Month 1:</b> "+calc.month1+
-       "&nbsp;&nbsp; <b>Month 2:</b> "+
-       calc.month2+"</p>";
+ c.results.forEach(r=>{
 
- html+="<table>";
-
- html+="<tr>"+
- "<th>Scheme</th>"+
- "<th>Month 1</th>"+
- "<th>Month 2</th>"+
- "<th>Average</th>"+
- "<th>Gate</th>"+
- "<th>Liability</th>"+
- "<th>Claim</th>"+
- "</tr>";
-
- calc.results.forEach(r=>{
-
-  html+="<tr>";
-
-  html+="<td>"+r.name+"</td>";
-
-  html+="<td>"+money(r.month1)+"</td>";
-
-  html+="<td>"+money(r.month2)+"</td>";
-
-  html+="<td>"+money(r.average)+"</td>";
-
-  html+="<td>"+money(r.gate)+"</td>";
-
-  html+="<td>"+(r.rate*100)+"%</td>";
-
-  html+="<td>"+money(r.claim)+"</td>";
-
-  html+="</tr>";
+  html+=
+  '<tr>'+
+  '<td>'+r.name+'</td>'+
+  '<td>'+money(r.month1)+'</td>'+
+  '<td>'+money(r.month2)+'</td>'+
+  '<td>'+money(r.average)+'</td>'+
+  '<td>'+money(r.gate)+'</td>'+
+  '<td>'+(r.rate*100).toFixed(1)+'%</td>'+
+  '<td>'+money(r.claim)+'</td>'+
+  '</tr>';
 
  });
 
- html+="</table>";
+ html+='</table>';
 
- html+="<div class='total'>FINAL LIABILITY: "+
-       money(calc.total)+
-       "</div>";
+ html+=
+ '<div class="total">'+
+ 'FINAL LIABILITY: '+money(c.total)+
+ '</div>';
 
- html+="<button onclick='makePDF()'>Download PDF</button>";
+ html+=
+ '<button onclick="downloadPDF()">'+
+ 'Download PDF</button>';
 
- html+="</div>";
+ html+='</div>';
 
- document.getElementById("result").innerHTML=html;
+ document.getElementById("out").innerHTML=html;
 
- window.calculation=calc;
-
+ window.finalCalculation=c;
 }
 
 
-function makePDF(){
+/* PDF */
+
+function downloadPDF(){
 
  const {jsPDF}=window.jspdf;
 
@@ -516,11 +516,10 @@ function makePDF(){
   format:"a4"
  });
 
- let calc=window.calculation;
+ const c=window.finalCalculation;
 
  doc.setFont("helvetica","bold");
-
- doc.setFontSize(18);
+ doc.setFontSize(17);
 
  doc.text(
   "SCHEME CLAIM REPORT",
@@ -529,46 +528,45 @@ function makePDF(){
  );
 
  doc.setFont("helvetica","normal");
-
  doc.setFontSize(8);
-
- doc.text(
-  "Gross Amount only | Gate = Average × 1.05",
-  148,21,
-  {align:"center"}
- );
 
  let y=30;
 
  doc.setFont("helvetica","bold");
 
- doc.text("Scheme",10,y);
- doc.text("Month 1",70,y);
- doc.text("Month 2",100,y);
- doc.text("Average",130,y);
- doc.text("Gate",160,y);
- doc.text("Liability",195,y);
- doc.text("Claim",220,y);
+ const x=[
+  10,72,103,134,164,198,220
+ ];
+
+ [
+  "Scheme",
+  "Month 1",
+  "Month 2",
+  "Average",
+  "Gate",
+  "Liability",
+  "Claim"
+ ].forEach((v,i)=>{
+  doc.text(v,x[i],y);
+ });
 
  y+=7;
 
  doc.setFont("helvetica","normal");
 
- calc.results.forEach(r=>{
+ c.results.forEach(r=>{
 
-  doc.text(r.name,10,y);
-
-  doc.text(money(r.month1),70,y);
-
-  doc.text(money(r.month2),100,y);
-
-  doc.text(money(r.average),130,y);
-
-  doc.text(money(r.gate),160,y);
-
-  doc.text((r.rate*100)+"%",195,y);
-
-  doc.text(money(r.claim),220,y);
+  [
+   r.name,
+   money(r.month1),
+   money(r.month2),
+   money(r.average),
+   money(r.gate),
+   (r.rate*100)+"%",
+   money(r.claim)
+  ].forEach((v,i)=>{
+   doc.text(String(v),x[i],y);
+  });
 
   y+=7;
 
@@ -577,35 +575,29 @@ function makePDF(){
  y+=8;
 
  doc.setFont("helvetica","bold");
-
  doc.setFontSize(14);
 
  doc.text(
-  "FINAL LIABILITY: "+money(calc.total),
+  "FINAL LIABILITY: "+money(c.total),
   148,y,
   {align:"center"}
  );
 
- doc.save(
-  "Scheme_Claim_Report.pdf"
- );
-
+ doc.save("Scheme_Claim_Report.pdf");
 }
 
 
-document
-.getElementById("calculate")
-.onclick=async()=>{
+/* MAIN BUTTON */
+
+document.getElementById("go").onclick=async()=>{
 
  try{
 
   const excel=
-   document.getElementById("excel")
-   .files[0];
+   document.getElementById("excel").files[0];
 
   const chart=
-   document.getElementById("chart")
-   .files[0];
+   document.getElementById("chart").files[0];
 
   if(!excel)
    throw new Error(
@@ -617,19 +609,19 @@ document
     "Please upload the current scheme chart."
    );
 
-  status.innerText=
-   "Processing purchase report...";
-
   const rows=
-   await readExcel(excel);
+   await excelRows(excel);
+
+  const rates=
+   await readSchemeChart(chart);
 
   status.innerText=
-   "Calculating scheme claim...";
+   "Calculating report...";
 
-  const calc=
-   calculate(rows);
+  const calculation=
+   calculate(rows,rates);
 
-  showResult(calc);
+  showReport(calculation);
 
   status.innerText=
    "Report generated successfully.";
@@ -645,6 +637,5 @@ document
 };
 
 </script>
-
 </body>
 </html>

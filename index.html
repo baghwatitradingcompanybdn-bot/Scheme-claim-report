@@ -711,3 +711,1253 @@ function parseSchemeChart(text){
  );
 
 }
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<title>Scheme Claim Report</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+ margin:0;
+ background:#f5f7fb;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+ color:#172033
+}
+
+main{
+ max-width:1050px;
+ margin:auto;
+ padding:22px 14px 60px
+}
+
+h1{
+ margin:0;
+ font-size:28px
+}
+
+.sub{
+ color:#667085;
+ margin-top:4px
+}
+
+.card{
+ background:#fff;
+ border-radius:18px;
+ padding:18px;
+ margin:15px 0;
+ box-shadow:0 2px 14px #00000012
+}
+
+label{
+ display:block;
+ font-weight:700;
+ margin:15px 0 7px
+}
+
+input,button{
+ width:100%;
+ padding:14px;
+ border-radius:12px;
+ font-size:16px
+}
+
+input{
+ border:1px solid #d0d5dd;
+ background:#fff
+}
+
+button{
+ border:0;
+ background:#1257c7;
+ color:#fff;
+ font-weight:700;
+ margin-top:16px
+}
+
+button:disabled{
+ opacity:.55
+}
+
+#status{
+ margin-top:14px;
+ padding:12px;
+ border-radius:10px;
+ background:#eef4ff
+}
+
+table{
+ width:100%;
+ border-collapse:collapse;
+ margin-top:14px;
+ font-size:12px
+}
+
+th,td{
+ border:1px solid #d9dee8;
+ padding:8px
+}
+
+th{
+ background:#edf3fb
+}
+
+td:not(:first-child),
+th:not(:first-child){
+ text-align:right
+}
+
+.total{
+ font-size:22px;
+ font-weight:800;
+ margin-top:18px
+}
+
+.note{
+ font-size:13px;
+ color:#667085;
+ margin-top:10px
+}
+
+.bad{
+ background:#fff4f4;
+ color:#9b1c1c
+}
+
+.good{
+ background:#effaf3;
+ color:#166534
+}
+
+@media(max-width:700px){
+ table{
+  font-size:10px
+ }
+
+ th,td{
+  padding:6px 4px
+ }
+}
+</style>
+</head>
+
+<body>
+
+<main>
+
+<h1>Scheme Claim Report</h1>
+
+<div class="sub">
+Automatic monthly scheme calculator
+</div>
+
+<div class="card">
+
+<label>
+Purchase Excel — previous 2 complete months
+</label>
+
+<input
+ id="excel"
+ type="file"
+ accept=".xlsx,.xls,.csv"
+>
+
+<label>
+Current month scheme chart
+</label>
+
+<input
+ id="chart"
+ type="file"
+ accept="image/*"
+>
+
+<button id="go">
+Generate Report
+</button>
+
+<div id="status">
+Ready.
+</div>
+
+</div>
+
+<div id="out"></div>
+
+</main>
+
+<script>
+
+const $=id=>document.getElementById(id);
+
+
+/* SCREEN CURRENCY */
+
+const screenMoney=n=>
+ "₹"+(Number(n)||0).toLocaleString("en-IN",{
+  minimumFractionDigits:2,
+  maximumFractionDigits:2
+ });
+
+
+/*
+ PDF CURRENCY
+
+ jsPDF Helvetica does not reliably support ₹.
+ Therefore PDF deliberately uses Rs.
+ This removes the unwanted "1" problem.
+*/
+
+const pdfMoney=n=>
+ "Rs. "+(Number(n)||0).toLocaleString("en-IN",{
+  minimumFractionDigits:2,
+  maximumFractionDigits:2
+ });
+
+
+/* NUMBER */
+
+const num=v=>{
+
+ let s=String(v??"")
+  .replace(/[₹,\s]/g,"");
+
+ let n=parseFloat(s);
+
+ return Number.isFinite(n)?n:0;
+};
+
+
+/* CLEAN TEXT */
+
+const clean=s=>
+ String(s??"")
+ .toLowerCase()
+ .replace(/₹/g," rs ")
+ .replace(/[^a-z0-9.%\-]/g," ")
+ .replace(/\s+/g," ")
+ .trim();
+
+
+/* MONTH */
+
+function monthKey(d){
+
+ return d.getFullYear()
+  +"-
+  "+String(d.getMonth()+1).padStart(2,"0");
+
+}
+
+
+/* DATE */
+
+function dateValue(v){
+
+ if(v instanceof Date && !isNaN(v))
+  return v;
+
+ if(typeof v==="number"){
+
+  return new Date(
+   Date.UTC(1899,11,30)+
+   v*86400000
+  );
+
+ }
+
+ let s=String(v??"").trim();
+
+ if(!s)
+  return null;
+
+ let d=new Date(s);
+
+ if(!isNaN(d))
+  return d;
+
+ let m=s.match(
+  /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/
+ );
+
+ if(m){
+
+  d=new Date(
+   +m[3],
+   +m[2]-1,
+   +m[1]
+  );
+
+  return isNaN(d)?null:d;
+ }
+
+ return null;
+}
+
+
+/* =========================
+   EXCEL READING
+   ========================= */
+
+async function readExcel(file){
+
+ const wb=XLSX.read(
+  await file.arrayBuffer(),
+  {
+   type:"array",
+   cellDates:true
+  }
+ );
+
+ const ws=
+  wb.Sheets[wb.SheetNames[0]];
+
+ const rows=
+  XLSX.utils.sheet_to_json(
+   ws,
+   {
+    header:1,
+    defval:""
+   }
+  );
+
+ let header=-1;
+
+ for(let i=0;i<rows.length;i++){
+
+  if(
+   rows[i].some(
+    v=>clean(v).includes("gross amount")
+   )
+  ){
+   header=i;
+   break;
+  }
+
+ }
+
+ if(header<0)
+  throw Error(
+   "Gross Amount column not found."
+  );
+
+ const heads=
+  rows[header].map(v=>clean(v));
+
+ const di=heads.findIndex(
+  v=>v==="grn date"||
+  v.includes("grn date")
+ );
+
+ const ni=heads.findIndex(
+  v=>v==="product name"||
+  v.includes("product name")
+ );
+
+ const gi=heads.findIndex(
+  v=>v==="gross amount"||
+  v.includes("gross amount")
+ );
+
+ if(di<0||ni<0||gi<0){
+
+  throw Error(
+   "GRN Date, Product Name or Gross Amount column is missing."
+  );
+
+ }
+
+ const out=[];
+
+ for(
+  const r of rows.slice(header+1)
+ ){
+
+  const date=dateValue(r[di]);
+
+  const name=
+   String(r[ni]??"").trim();
+
+  if(!date||!name)
+   continue;
+
+  out.push({
+   date:date,
+   name:name,
+   gross:num(r[gi])
+  });
+
+ }
+
+ if(out.length<1)
+  throw Error(
+   "No purchase rows found."
+  );
+
+ return out;
+}
+
+
+/* =========================
+   OCR CURRENT SCHEME CHART
+   ========================= */
+
+async function ocrChart(file){
+
+ $("status").textContent=
+  "Reading current scheme chart…";
+
+ const url=
+  URL.createObjectURL(file);
+
+ const result=
+  await Tesseract.recognize(
+   url,
+   "eng",
+   {
+    logger:m=>{
+
+     if(
+      m.status===
+      "recognizing text"
+     ){
+
+      $("status").textContent=
+       "Reading scheme chart… "+
+       Math.round(
+        (m.progress||0)*100
+       )+"%";
+
+     }
+
+    }
+   }
+  );
+
+ URL.revokeObjectURL(url);
+
+ const text=
+  result.data.text||"";
+
+ if(!text.trim()){
+
+  throw Error(
+   "Could not read the scheme chart. Please use a clear chart image."
+  );
+
+ }
+
+ return text;
+}
+
+
+/* OCR LINES */
+
+function ocrLines(text){
+
+ return text
+  .split(/\r?\n/)
+  .map(
+   x=>x
+    .replace(/\s+/g," ")
+    .trim()
+  )
+  .filter(Boolean);
+
+}
+
+
+/* =========================
+   SCHEME CHART PARSER
+   ========================= */
+
+function parseSchemeChart(text){
+
+ const lines=
+  ocrLines(text);
+
+ const schemes=[];
+
+ const ignore=
+  /^(scheme|product|products|mrp|rate|rates|liability|slab|slabs|from|to|upto|up to|total|month)$/i;
+
+
+ for(
+  let i=0;
+  i<lines.length;
+  i++
+ ){
+
+  let raw=lines[i];
+
+  let line=clean(raw);
+
+  if(!line||ignore.test(raw))
+   continue;
+
+
+  const pct=[
+   ...raw.matchAll(
+    /(\d+(?:\.\d+)?)\s*%/g
+   )
+  ]
+  .map(m=>Number(m[1]))
+  .filter(
+   x=>x>=0&&x<=100
+  );
+
+
+  if(!pct.length)
+   continue;
+
+
+  /*
+   Find product/head name
+   near the percentage row.
+  */
+
+  let title="";
+
+  for(
+   let j=i;
+   j>=Math.max(0,i-3);
+   j--
+  ){
+
+   let candidate=
+    lines[j]
+    .replace(
+     /(\d+(?:\.\d+)?)\s*%/g,
+     " "
+    )
+    .replace(
+     /\b\d{1,5}(?:\.\d+)?\s*(?:rs|₹)?\b/gi,
+     " "
+    )
+    .replace(
+     /\s+/g,
+     " "
+    )
+    .trim();
+
+   if(
+    candidate.length>=3 &&
+    !/^\d[\d\s.\-–—]*$/.test(candidate)
+   ){
+
+    title=candidate;
+    break;
+
+   }
+
+  }
+
+
+  if(!title)
+   continue;
+
+
+  /*
+   Explicit MRP.
+  */
+
+  let mrp=null;
+
+  const mr=
+   raw.match(
+    /(?:mrp|₹|rs\.?)\s*[-:]?\s*(\d+(?:\.\d+)?)/i
+   );
+
+  if(mr)
+   mrp=Number(mr[1]);
+
+
+  /*
+   Rates.
+  */
+
+  const rates=
+   pct.map(p=>({
+    min:null,
+    max:null,
+    rate:p/100
+   }));
+
+
+  /*
+   Slab ranges.
+  */
+
+  const nearby=
+   lines
+    .slice(
+     Math.max(0,i-3),
+     Math.min(lines.length,i+2)
+    )
+    .join(" ");
+
+
+  const ranges=[];
+
+  const rangeRe=
+   /(\d+(?:\.\d+)?)\s*(?:-|–|—|to)\s*(\d+(?:\.\d+)?)/gi;
+
+  let rm;
+
+  while(
+   (rm=rangeRe.exec(nearby))
+  ){
+
+   ranges.push([
+    Number(rm[1]),
+    Number(rm[2])
+   ]);
+
+  }
+
+
+  const plus=[
+   ...nearby.matchAll(
+    /(\d+(?:\.\d+)?)\s*\+/g
+   )
+  ]
+  .map(
+   m=>Number(m[1])
+  );
+
+
+  for(
+   let k=0;
+   k<Math.min(
+    ranges.length,
+    rates.length
+   );
+   k++
+  ){
+
+   rates[k].min=
+    ranges[k][0];
+
+   rates[k].max=
+    ranges[k][1];
+
+  }
+
+
+  for(
+   let k=0;
+   k<Math.min(
+    plus.length,
+    rates.length
+   );
+   k++
+  ){
+
+   if(rates[k].min===null)
+    rates[k].min=plus[k];
+
+   rates[k].max=Infinity;
+
+  }
+
+
+  schemes.push({
+   title:title,
+   mrp:mrp,
+   rates:rates,
+   sourceLine:raw
+  });
+
+ }
+
+
+ /*
+  Merge duplicate OCR detections.
+ */
+
+ const merged=[];
+
+ for(const s of schemes){
+
+  let old=
+   merged.find(
+    x=>
+     clean(x.title)===
+     clean(s.title)&&
+     x.mrp===s.mrp
+   );
+
+  if(!old){
+
+   merged.push(s);
+
+  }else{
+
+   old.rates.push(
+    ...s.rates
+   );
+
+  }
+
+ }
+
+
+ return merged.filter(
+  s=>{
+   const t=clean(s.title);
+
+   return(
+    t.length>=3 &&
+    /[a-z]/.test(t)
+   );
+
+  }
+ );
+
+}
+ <script>
+
+function pdfMoney(n){
+  return "Rs. " + Number(n || 0).toLocaleString("en-IN",{
+    minimumFractionDigits:2,
+    maximumFractionDigits:2
+  });
+}
+
+function safePdfText(text){
+  return String(text || "")
+    .replace(/₹/g,"Rs.")
+    .replace(/[^\x20-\x7E]/g," ");
+}
+
+function makePDF(calc){
+
+  const { jsPDF } = window.jspdf;
+
+  const pdf = new jsPDF({
+    orientation:"landscape",
+    unit:"mm",
+    format:"a4"
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  /* TITLE */
+
+  pdf.setFont("helvetica","bold");
+  pdf.setFontSize(16);
+
+  pdf.text(
+    "MONTHLY SCHEME CLAIM REPORT",
+    pageWidth / 2,
+    13,
+    {align:"center"}
+  );
+
+  pdf.setFontSize(10);
+  pdf.setFont("helvetica","normal");
+
+  pdf.text(
+    "Scheme Month: " + calc.schemeMonth,
+    pageWidth / 2,
+    20,
+    {align:"center"}
+  );
+
+
+  /* TABLE SETTINGS */
+
+  const left = 8;
+  const top = 28;
+
+  const columns = [
+    {key:"product",  title:"Product",       width:74},
+    {key:"m1",       title:"Month 1",       width:28},
+    {key:"m2",       title:"Month 2",       width:28},
+    {key:"avg",      title:"Average",       width:31},
+    {key:"gate",     title:"Gate",          width:31},
+    {key:"rate",     title:"Liability %",   width:25},
+    {key:"claim",    title:"Claim Amount",  width:36}
+  ];
+
+  let x = left;
+
+  /* HEADER */
+
+  pdf.setFont("helvetica","bold");
+  pdf.setFontSize(8);
+
+  columns.forEach(col => {
+
+    pdf.rect(x,top,col.width,9);
+
+    pdf.text(
+      safePdfText(col.title),
+      x + col.width/2,
+      top + 5.8,
+      {align:"center"}
+    );
+
+    x += col.width;
+  });
+
+
+  /* BODY */
+
+  let y = top + 9;
+
+  pdf.setFont("helvetica","normal");
+  pdf.setFontSize(7.5);
+
+
+  calc.rows.forEach(row => {
+
+    const productText = safePdfText(row.product);
+
+    const productLines = pdf.splitTextToSize(
+      productText,
+      columns[0].width - 3
+    );
+
+    const rowHeight = Math.max(
+      9,
+      productLines.length * 3.8 + 3
+    );
+
+
+    /* new page if required */
+
+    if(y + rowHeight > pageHeight - 18){
+
+      pdf.addPage();
+
+      y = 15;
+
+      let hx = left;
+
+      pdf.setFont("helvetica","bold");
+
+      columns.forEach(col => {
+
+        pdf.rect(hx,y,col.width,9);
+
+        pdf.text(
+          safePdfText(col.title),
+          hx + col.width/2,
+          y + 5.8,
+          {align:"center"}
+        );
+
+        hx += col.width;
+
+      });
+
+      y += 9;
+
+      pdf.setFont("helvetica","normal");
+    }
+
+
+    /* PRODUCT */
+
+    let cx = left;
+
+    pdf.rect(
+      cx,
+      y,
+      columns[0].width,
+      rowHeight
+    );
+
+    pdf.text(
+      productLines,
+      cx + 1.5,
+      y + 4.5,
+      {
+        maxWidth:columns[0].width - 3
+      }
+    );
+
+    cx += columns[0].width;
+
+
+    /* MONTH 1 */
+
+    pdf.rect(
+      cx,
+      y,
+      columns[1].width,
+      rowHeight
+    );
+
+    pdf.text(
+      pdfMoney(row.m1),
+      cx + columns[1].width - 1.5,
+      y + rowHeight/2 + 1.8,
+      {align:"right"}
+    );
+
+    cx += columns[1].width;
+
+
+    /* MONTH 2 */
+
+    pdf.rect(
+      cx,
+      y,
+      columns[2].width,
+      rowHeight
+    );
+
+    pdf.text(
+      pdfMoney(row.m2),
+      cx + columns[2].width - 1.5,
+      y + rowHeight/2 + 1.8,
+      {align:"right"}
+    );
+
+    cx += columns[2].width;
+
+
+    /* AVERAGE */
+
+    pdf.rect(
+      cx,
+      y,
+      columns[3].width,
+      rowHeight
+    );
+
+    pdf.text(
+      pdfMoney(row.avg),
+      cx + columns[3].width - 1.5,
+      y + rowHeight/2 + 1.8,
+      {align:"right"}
+    );
+
+    cx += columns[3].width;
+
+
+    /* GATE */
+
+    pdf.rect(
+      cx,
+      y,
+      columns[4].width,
+      rowHeight
+    );
+
+    pdf.text(
+      pdfMoney(row.gate),
+      cx + columns[4].width - 1.5,
+      y + rowHeight/2 + 1.8,
+      {align:"right"}
+    );
+
+    cx += columns[4].width;
+
+
+    /* RATE */
+
+    pdf.rect(
+      cx,
+      y,
+      columns[5].width,
+      rowHeight
+    );
+
+    pdf.text(
+      Number(row.rate || 0).toFixed(2) + "%",
+      cx + columns[5].width/2,
+      y + rowHeight/2 + 1.8,
+      {align:"center"}
+    );
+
+    cx += columns[5].width;
+
+
+    /* CLAIM */
+
+    pdf.rect(
+      cx,
+      y,
+      columns[6].width,
+      rowHeight
+    );
+
+    pdf.setFont("helvetica","bold");
+
+    pdf.text(
+      pdfMoney(row.claim),
+      cx + columns[6].width - 1.5,
+      y + rowHeight/2 + 1.8,
+      {align:"right"}
+    );
+
+    pdf.setFont("helvetica","normal");
+
+    y += rowHeight;
+  });
+
+
+  /* TOTAL */
+
+  y += 4;
+
+  if(y + 12 > pageHeight - 10){
+
+    pdf.addPage();
+
+    y = 15;
+  }
+
+  pdf.setFont("helvetica","bold");
+  pdf.setFontSize(10);
+
+  pdf.text(
+    "TOTAL CLAIM",
+    pageWidth - 67,
+    y + 7
+  );
+
+  pdf.text(
+    pdfMoney(calc.totalClaim),
+    pageWidth - 8,
+    y + 7,
+    {align:"right"}
+  );
+
+
+  /* FOOTER */
+
+  pdf.setFont("helvetica","normal");
+  pdf.setFontSize(7);
+
+  pdf.text(
+    "Generated by Monthly Scheme Claim Calculator",
+    pageWidth / 2,
+    pageHeight - 6,
+    {align:"center"}
+  );
+
+
+  const filename =
+    "Scheme_Claim_" +
+    String(calc.schemeMonth || "Report")
+      .replace(/[^\w\-]/g,"_") +
+    ".pdf";
+
+  pdf.save(filename);
+}
+
+
+/* =========================================================
+   MAIN CALCULATION
+   ========================================================= */
+
+async function runCalculation(){
+
+  try{
+
+    if(!purchaseFile){
+
+      alert("Please upload the purchase Excel file.");
+
+      return;
+    }
+
+    if(!schemeFile){
+
+      alert("Please upload the current month scheme chart.");
+
+      return;
+    }
+
+
+    statusEl.textContent = "Reading purchase Excel...";
+
+    const purchaseData =
+      await readPurchaseExcel(purchaseFile);
+
+
+    statusEl.textContent = "Reading current scheme chart...";
+
+    const schemeText =
+      await readSchemeChart(schemeFile);
+
+
+    statusEl.textContent =
+      "Detecting current-month scheme products and liability...";
+
+
+    const schemeRows =
+      parseSchemeRows(schemeText);
+
+
+    if(!schemeRows.length){
+
+      throw new Error(
+        "No scheme products or liability slabs could be detected from the uploaded chart."
+      );
+    }
+
+
+    statusEl.textContent =
+      "Calculating previous two complete months...";
+
+
+    const calc =
+      calculateClaim(
+        purchaseData,
+        schemeRows
+      );
+
+
+    window.lastCalculation = calc;
+
+
+    render(calc);
+
+
+    statusEl.textContent =
+      "Calculation completed successfully.";
+
+
+  }catch(err){
+
+    console.error(err);
+
+    statusEl.textContent = "Calculation failed.";
+
+    alert(
+      "Calculation Error:\n\n" +
+      (err && err.message
+        ? err.message
+        : String(err))
+    );
+  }
+}
+
+
+/* =========================================================
+   PDF BUTTON
+   ========================================================= */
+
+if(pdfBtn){
+
+  pdfBtn.addEventListener("click",function(){
+
+    if(!window.lastCalculation){
+
+      alert(
+        "Please calculate the claim first."
+      );
+
+      return;
+    }
+
+    try{
+
+      makePDF(window.lastCalculation);
+
+    }catch(err){
+
+      console.error(err);
+
+      alert(
+        "PDF generation failed:\n\n" +
+        err.message
+      );
+    }
+
+  });
+
+}
+
+
+/* =========================================================
+   CALCULATE BUTTON
+   ========================================================= */
+
+if(calculateBtn){
+
+  calculateBtn.addEventListener(
+    "click",
+    runCalculation
+  );
+
+}
+
+
+/* =========================================================
+   FILE INPUTS
+   ========================================================= */
+
+if(purchaseInput){
+
+  purchaseInput.addEventListener(
+    "change",
+    function(e){
+
+      purchaseFile =
+        e.target.files &&
+        e.target.files[0]
+          ? e.target.files[0]
+          : null;
+
+      if(purchaseFile){
+
+        purchaseFileName.textContent =
+          purchaseFile.name;
+      }
+
+    }
+  );
+
+}
+
+
+if(schemeInput){
+
+  schemeInput.addEventListener(
+    "change",
+    function(e){
+
+      schemeFile =
+        e.target.files &&
+        e.target.files[0]
+          ? e.target.files[0]
+          : null;
+
+      if(schemeFile){
+
+        schemeFileName.textContent =
+          schemeFile.name;
+      }
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   INITIAL STATE
+   ========================================================= */
+
+window.lastCalculation = null;
+
+statusEl.textContent =
+  "Upload purchase Excel and current-month scheme chart.";
+
+</script>

@@ -1,56 +1,650 @@
-Yes. Add the exact Confy Pouch and Confy Jar inclusion rules to the reusable prompt.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scheme Claim Report</title>
 
-Final reusable prompt
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
-“I am uploading the purchase report for the previous two months and the current month’s scheme chart. Prepare a complete and accurate scheme claim report for the current month.
+<style>
+body{
+ margin:0;
+ background:#f5f7fb;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial;
+ color:#172033
+}
+.container{
+ max-width:850px;
+ margin:auto;
+ padding:25px 16px 50px
+}
+h1{margin:0 0 5px;font-size:28px}
+.subtitle{color:#667085;margin-bottom:20px}
+.card{
+ background:#fff;
+ border-radius:18px;
+ padding:20px;
+ margin:15px 0;
+ box-shadow:0 2px 12px rgba(0,0,0,.08)
+}
+label{
+ display:block;
+ font-weight:700;
+ margin:16px 0 7px
+}
+input{
+ width:100%;
+ padding:13px;
+ border:1px solid #d0d5dd;
+ border-radius:11px;
+ font-size:16px;
+ box-sizing:border-box
+}
+button{
+ width:100%;
+ border:0;
+ border-radius:12px;
+ padding:14px;
+ margin-top:18px;
+ background:#1457c5;
+ color:white;
+ font-size:16px;
+ font-weight:700
+}
+button:disabled{opacity:.5}
+.status{
+ margin-top:15px;
+ padding:12px;
+ background:#eef4ff;
+ border-radius:10px
+}
+table{
+ width:100%;
+ border-collapse:collapse;
+ margin-top:18px;
+ font-size:12px
+}
+th,td{
+ border:1px solid #ddd;
+ padding:7px
+}
+th{
+ background:#edf3fb
+}
+td:not(:first-child),th:not(:first-child){
+ text-align:right
+}
+.total{
+ font-size:21px;
+ font-weight:800;
+ margin-top:20px
+}
+</style>
+</head>
 
-Calculation & eligibility:
+<body>
 
-* Use Gross Amount only. Do not use quantity, cases, boxes, strips or pieces.
-* Use the full purchase data of both previous months.
-* Calculate Gate as: [(Month 1 Gross Amount + Month 2 Gross Amount) ÷ 2] × 1.05.
-* Apply the highest applicable liability % mentioned in the current month’s scheme chart.
-* Match every product strictly by scheme, product, MRP, SKU and pack size wherever specified.
-* Do not include products that do not qualify.
-* Do not assume eligibility from previous months; always check the current month’s scheme chart.
-* Cross-check all calculations twice.
+<div class="container">
 
-Confy Pouch — inclusion rule:
+<h1>Scheme Claim Report</h1>
+<div class="subtitle">
+Automatic purchase calculation
+</div>
 
-* Include products where the product name/packing contains PB, PBG, ROL or ROLL.
-* Include Poppins when it has ROL/ROLL packing.
-* Exclude all Melody products from Confy Pouch.
-* Do not include JAR products in Confy Pouch unless the current scheme chart specifically says so.
+<div class="card">
 
-Confy Jar — inclusion rule:
+<label>Purchase Excel</label>
+<input id="excel" type="file" accept=".xlsx,.xls,.csv">
 
-* Include products where the product name/packing contains JAR.
-* Exclude all Melody JAR products.
-* Include Funtoosh JAR when it meets the JAR scheme criteria.
-* Do not include non-JAR products in Confy Jar.
+<label>Current Month Scheme Chart</label>
+<input id="chart" type="file" accept="image/*,.pdf">
 
-Important: For Confy Pouch and Confy Jar, show exactly which SKUs/products were included and excluded before finalizing the calculation, so I can cross-check them.
+<button id="calculate">Generate Report</button>
 
-Report format:
+<div id="status" class="status">
+Upload both files and generate the report.
+</div>
 
-* Scheme / Product
-* MRP
-* Month 1 Gross Amount
-* Month 2 Gross Amount
-* Average
-* Gate Amount (+5%)
-* Liability %
-* Claim Amount
-* Final Total Liability
+</div>
 
-Design requirements:
+<div id="result"></div>
 
-* Make the report neat, clean, professional and easy to read.
-* Use a white background.
-* Do not include a “Calculation Rules Applied” section.
-* Do not include an “Important Notes” section.
-* Do not add unnecessary columns.
-* No black boxes, black squares or missing-character symbols.
-* Use the proper ₹ symbol.
-* Cross-check the entire Excel against the scheme chart before giving the final report.
-* Do not finalize until all product inclusions, exclusions, Gate amounts, liability percentages and total claim have been verified.”
+</div>
+
+<script>
+
+const status=document.getElementById("status");
+
+function money(n){
+ return "₹"+Number(n||0).toLocaleString("en-IN",{
+  minimumFractionDigits:2,
+  maximumFractionDigits:2
+ });
+}
+
+function number(v){
+ if(typeof v==="number") return v;
+
+ let n=parseFloat(
+  String(v||"")
+  .replace(/[₹,\s]/g,"")
+ );
+
+ return isNaN(n)?0:n;
+}
+
+function clean(v){
+ return String(v||"")
+ .toLowerCase()
+ .replace(/[^a-z0-9.]/g," ")
+ .replace(/\s+/g," ")
+ .trim();
+}
+
+function getDate(v){
+
+ if(v instanceof Date) return v;
+
+ if(typeof v==="number"){
+  return new Date(
+   Date.UTC(1899,11,30)+v*86400000
+  );
+ }
+
+ let d=new Date(v);
+
+ return isNaN(d)?null:d;
+}
+
+function monthKey(d){
+ return d.getFullYear()+"-"+
+ String(d.getMonth()+1).padStart(2,"0");
+}
+
+
+/* PRODUCT MATCHING */
+
+function matchProduct(name,type){
+
+ let n=clean(name);
+
+ if(type==="pgclassic")
+  return n.includes("parle g classic") &&
+         n.includes("72 pkt") &&
+         n.includes("10.00");
+
+ if(type==="pggold")
+  return n.includes("parle g gold") &&
+         n.includes("72 pkt") &&
+         n.includes("10.00");
+
+ if(type==="magix")
+  return n.includes("magix");
+
+ if(type==="dhinchak")
+  return n.includes("dhinchak");
+
+ if(type==="rusk")
+  return n.includes("rusk");
+
+ if(type==="atta")
+  return n.includes("parle g atta");
+
+ if(type==="2020")
+  return n.includes("20 20") &&
+         (n.includes("butter")||n.includes("cashew")) &&
+         n.includes("144 pkt") &&
+         n.includes("5.00");
+
+ if(type==="pouch")
+  return !n.includes("melody") &&
+   (
+    n.includes(" pb ") ||
+    n.includes(" pbg ") ||
+    n.includes(" rol ") ||
+    n.includes(" roll ")
+   );
+
+ if(type==="jar")
+  return n.includes("jar") &&
+         !n.includes("melody");
+
+ return false;
+}
+
+
+/* CURRENT SCHEME RATES */
+
+const schemes=[
+
+ {
+  type:"pgclassic",
+  name:"Parle-G Classic ₹10",
+  rate:.04
+ },
+
+ {
+  type:"pggold",
+  name:"Parle-G Gold ₹10",
+  rate:.04
+ },
+
+ {
+  type:"magix",
+  name:"Magix",
+  rate:.08
+ },
+
+ {
+  type:"dhinchak",
+  name:"Dhinchak",
+  rate:.04
+ },
+
+ {
+  type:"rusk",
+  name:"Rusk",
+  rate:.04
+ },
+
+ {
+  type:"atta",
+  name:"Atta",
+  rate:.15
+ },
+
+ {
+  type:"2020",
+  name:"20-20 Butter + Cashew ₹5",
+  rate:.03
+ },
+
+ {
+  type:"pouch",
+  name:"Confy Pouch",
+  rate:.03
+ },
+
+ {
+  type:"jar",
+  name:"Confy Jar",
+  rate:.08
+ }
+
+];
+
+
+async function readExcel(file){
+
+ status.innerText="Reading Excel...";
+
+ const buffer=await file.arrayBuffer();
+
+ const workbook=XLSX.read(buffer,{
+  type:"array",
+  cellDates:true
+ });
+
+ const sheet=
+ workbook.Sheets[workbook.SheetNames[0]];
+
+ const data=
+ XLSX.utils.sheet_to_json(
+  sheet,
+  {header:1,defval:""}
+ );
+
+ let header=-1;
+
+ for(let i=0;i<data.length;i++){
+
+  if(
+   data[i].some(x=>
+    String(x).toLowerCase()
+    .includes("gross amount")
+   )
+  ){
+   header=i;
+   break;
+  }
+
+ }
+
+ if(header===-1)
+  throw new Error(
+   "Gross Amount column was not found."
+  );
+
+ const headers=
+ data[header].map(x=>
+  String(x).trim().toLowerCase()
+ );
+
+ const dateCol=
+ headers.indexOf("grn date");
+
+ const nameCol=
+ headers.indexOf("product name");
+
+ const grossCol=
+ headers.indexOf("gross amount");
+
+ if(
+  dateCol<0||
+  nameCol<0||
+  grossCol<0
+ )
+ throw new Error(
+  "GRN Date, Product Name or Gross Amount column missing."
+ );
+
+ return data
+ .slice(header+1)
+ .map(row=>({
+
+  date:getDate(row[dateCol]),
+
+  name:String(row[nameCol]||""),
+
+  gross:number(row[grossCol])
+
+ }))
+ .filter(x=>x.date&&x.name);
+
+}
+
+
+function calculate(rows){
+
+ let months={};
+
+ rows.forEach(r=>{
+
+  let key=monthKey(r.date);
+
+  if(!months[key])
+   months[key]=0;
+
+  months[key]+=r.gross;
+
+ });
+
+ let keys=Object.keys(months).sort();
+
+ if(keys.length<2)
+  throw new Error(
+   "Two complete purchase months are required."
+  );
+
+ let month1=keys[keys.length-2];
+ let month2=keys[keys.length-1];
+
+ let results=[];
+
+ schemes.forEach(s=>{
+
+  let selected=
+   rows.filter(r=>
+    matchProduct(r.name,s.type)
+   );
+
+  let a=
+   selected
+   .filter(r=>monthKey(r.date)===month1)
+   .reduce((sum,r)=>sum+r.gross,0);
+
+  let b=
+   selected
+   .filter(r=>monthKey(r.date)===month2)
+   .reduce((sum,r)=>sum+r.gross,0);
+
+  let average=(a+b)/2;
+
+  let gate=average*1.05;
+
+  let claim=gate*s.rate;
+
+  results.push({
+
+   name:s.name,
+
+   month1:a,
+
+   month2:b,
+
+   average:average,
+
+   gate:gate,
+
+   rate:s.rate,
+
+   claim:claim
+
+  });
+
+ });
+
+ return {
+
+  month1:month1,
+
+  month2:month2,
+
+  results:results,
+
+  total:results.reduce(
+   (sum,r)=>sum+r.claim,0
+  )
+
+ };
+
+}
+
+
+function showResult(calc){
+
+ let html="";
+
+ html+="<div class='card'>";
+
+ html+="<h2>Final Scheme Claim</h2>";
+
+ html+="<p><b>Month 1:</b> "+calc.month1+
+       "&nbsp;&nbsp; <b>Month 2:</b> "+
+       calc.month2+"</p>";
+
+ html+="<table>";
+
+ html+="<tr>"+
+ "<th>Scheme</th>"+
+ "<th>Month 1</th>"+
+ "<th>Month 2</th>"+
+ "<th>Average</th>"+
+ "<th>Gate</th>"+
+ "<th>Liability</th>"+
+ "<th>Claim</th>"+
+ "</tr>";
+
+ calc.results.forEach(r=>{
+
+  html+="<tr>";
+
+  html+="<td>"+r.name+"</td>";
+
+  html+="<td>"+money(r.month1)+"</td>";
+
+  html+="<td>"+money(r.month2)+"</td>";
+
+  html+="<td>"+money(r.average)+"</td>";
+
+  html+="<td>"+money(r.gate)+"</td>";
+
+  html+="<td>"+(r.rate*100)+"%</td>";
+
+  html+="<td>"+money(r.claim)+"</td>";
+
+  html+="</tr>";
+
+ });
+
+ html+="</table>";
+
+ html+="<div class='total'>FINAL LIABILITY: "+
+       money(calc.total)+
+       "</div>";
+
+ html+="<button onclick='makePDF()'>Download PDF</button>";
+
+ html+="</div>";
+
+ document.getElementById("result").innerHTML=html;
+
+ window.calculation=calc;
+
+}
+
+
+function makePDF(){
+
+ const {jsPDF}=window.jspdf;
+
+ const doc=new jsPDF({
+  orientation:"landscape",
+  unit:"mm",
+  format:"a4"
+ });
+
+ let calc=window.calculation;
+
+ doc.setFont("helvetica","bold");
+
+ doc.setFontSize(18);
+
+ doc.text(
+  "SCHEME CLAIM REPORT",
+  148,14,
+  {align:"center"}
+ );
+
+ doc.setFont("helvetica","normal");
+
+ doc.setFontSize(8);
+
+ doc.text(
+  "Gross Amount only | Gate = Average × 1.05",
+  148,21,
+  {align:"center"}
+ );
+
+ let y=30;
+
+ doc.setFont("helvetica","bold");
+
+ doc.text("Scheme",10,y);
+ doc.text("Month 1",70,y);
+ doc.text("Month 2",100,y);
+ doc.text("Average",130,y);
+ doc.text("Gate",160,y);
+ doc.text("Liability",195,y);
+ doc.text("Claim",220,y);
+
+ y+=7;
+
+ doc.setFont("helvetica","normal");
+
+ calc.results.forEach(r=>{
+
+  doc.text(r.name,10,y);
+
+  doc.text(money(r.month1),70,y);
+
+  doc.text(money(r.month2),100,y);
+
+  doc.text(money(r.average),130,y);
+
+  doc.text(money(r.gate),160,y);
+
+  doc.text((r.rate*100)+"%",195,y);
+
+  doc.text(money(r.claim),220,y);
+
+  y+=7;
+
+ });
+
+ y+=8;
+
+ doc.setFont("helvetica","bold");
+
+ doc.setFontSize(14);
+
+ doc.text(
+  "FINAL LIABILITY: "+money(calc.total),
+  148,y,
+  {align:"center"}
+ );
+
+ doc.save(
+  "Scheme_Claim_Report.pdf"
+ );
+
+}
+
+
+document
+.getElementById("calculate")
+.onclick=async()=>{
+
+ try{
+
+  const excel=
+   document.getElementById("excel")
+   .files[0];
+
+  const chart=
+   document.getElementById("chart")
+   .files[0];
+
+  if(!excel)
+   throw new Error(
+    "Please upload the purchase Excel."
+   );
+
+  if(!chart)
+   throw new Error(
+    "Please upload the current scheme chart."
+   );
+
+  status.innerText=
+   "Processing purchase report...";
+
+  const rows=
+   await readExcel(excel);
+
+  status.innerText=
+   "Calculating scheme claim...";
+
+  const calc=
+   calculate(rows);
+
+  showResult(calc);
+
+  status.innerText=
+   "Report generated successfully.";
+
+ }
+ catch(error){
+
+  status.innerText=
+   "Error: "+error.message;
+
+ }
+
+};
+
+</script>
+
+</body>
+</html>
